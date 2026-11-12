@@ -1,0 +1,8 @@
+# Apache (XAMPP, WAMP, MAMP, hébergement mutualisé) quand le projet est ouvert
+# depuis sa racine, ex. http://localhost/karavan/ : tout est envoyé vers public/.
+# Idéalement, faites plutôt pointer le serveur web directement sur public/.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^public/ - [L]
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
