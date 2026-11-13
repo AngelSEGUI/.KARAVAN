@@ -1,0 +1,81 @@
+/* ==========================================================================
+   THÈME « NUIT »
+   Sombre, accents néon, ambiance scène de nuit.
+   Même liste de variables que festival.css (voir les commentaires de ce fichier).
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Inter:wght@400;500;700&display=swap");
+
+:root {
+    color-scheme: dark;
+
+    --font-display: "Unbounded", system-ui, sans-serif;
+    --font-body: "Inter", system-ui, sans-serif;
+    --font-size-base: 16px;
+    --heading-weight: 700;
+    --heading-tracking: -0.01em;
+    --display-transform: uppercase;
+
+    --color-bg: #0d0a1c;
+    --color-bg-alt: #110d25;
+    --color-surface: #17132e;
+    --color-input: #1f1a3b;
+    --color-text: #f2eefe;
+    --color-text-soft: #cfc9ea;
+    --color-muted: #9993bb;
+    --color-line: #2c2652;
+    --color-line-strong: #6b62a8;
+
+    --color-primary: #ff4fd8;
+    --color-primary-hover: #ff7ae2;
+    --color-on-primary: #14051a;
+    --color-primary-soft: rgba(255, 79, 216, 0.14);
+    --color-accent: #22d3ff;
+    --color-highlight: #c6ff3d;
+    --color-on-highlight: #0d0a1c;
+
+    --color-inverse: #f2eefe;
+    --color-on-inverse: #0d0a1c;
+    --color-on-inverse-muted: rgba(13, 10, 28, 0.7);
+    --color-inverse-accent: #a3138f;      /* texte coloré sur blocs inversés (initiales, mois, pastilles) */
+
+    --color-success: #5dffb1;
+    --color-success-bg: rgba(93, 255, 177, 0.12);
+    --color-danger: #ff6b8f;
+    --color-danger-bg: rgba(255, 107, 143, 0.14);
+    --color-warning: #ffd166;
+    --color-warning-bg: rgba(255, 209, 102, 0.14);
+    --color-info: #b9e8ff;
+    --color-info-bg: rgba(34, 211, 255, 0.12);
+
+    --header-bg: rgba(13, 10, 28, 0.82);
+    --footer-bg: #07051a;
+    --footer-text: rgba(242, 238, 254, 0.7);
+    --footer-heading: #ffffff;
+    --band-dark-text: #f2eefe;             /* texte sur la section sombre */
+    --band-dark-accent: #c6ff3d;          /* chiffres clés sur la section sombre */
+    --band-dark-bg: #07051a;
+    --sidebar-bg: #07051a;
+    --gradient-brand: linear-gradient(120deg, var(--color-primary), var(--color-accent));
+
+    --radius-sm: 10px;
+    --radius: 16px;
+    --radius-lg: 24px;
+    --radius-input: 12px;
+    --radius-button: 999px;
+    --border-width: 1px;
+
+    --shadow: 0 0 0 1px rgba(255, 255, 255, 0.02), 0 10px 30px -12px rgba(0, 0, 0, 0.8);
+    --shadow-lg: 0 24px 60px -18px rgba(255, 79, 216, 0.35);
+    --shadow-button: 0 0 24px -4px rgba(255, 79, 216, 0.75);
+
+    --cover-saturation: 90%;
+    --cover-lightness: 46%;
+    --cover-sun: block;
+    --cover-hills: block;
+
+    --logo-tilt: 0deg;
+    --poster-tilt: 0deg;
+    --hover-lift: -4px;
+    --transition: 0.2s ease;
+}

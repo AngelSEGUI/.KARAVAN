@@ -1,74 +1,104 @@
 <?php
-declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Core\Model;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** Trajet en covoiturage proposé par un membre vers un festival. */
-final class Ride extends Model
+/**
+ * Trajet en covoiturage proposé par un membre (le conducteur) vers un festival.
+ *
+ * @property-read int|null $booked_seats  disponible après withBookedSeats()
+ */
+#[Fillable([
+    'festival_id', 'departure_city', 'meeting_point', 'departs_at', 'returns_at',
+    'seats', 'price', 'vehicle', 'notes',
+])]
+class Ride extends Model
 {
-    protected static string $table = 'rides';
+    use HasFactory;
 
-    private const BASE = '
-        SELECT r.*,
-               u.name AS driver_name, u.city AS driver_city,
-               f.name AS festival_name, f.slug AS festival_slug, f.city AS festival_city, f.hue AS festival_hue,
-               r.seats - COALESCE((SELECT SUM(b.seats) FROM ride_bookings b WHERE b.ride_id = r.id), 0) AS seats_left
-        FROM rides r
-        JOIN users u     ON u.id = r.user_id
-        JOIN festivals f ON f.id = r.festival_id';
-
-    public static function search(array $filters = []): array
+    protected function casts(): array
     {
-        $where = [];
-        $params = [];
-
-        if (!empty($filters['festival'])) {
-            $where[] = 'r.festival_id = ?';
-            $params[] = (int) $filters['festival'];
-        }
-        if (!empty($filters['from'])) {
-            $where[] = 'r.departure_city LIKE ?';
-            $params[] = '%' . $filters['from'] . '%';
-        }
-        if (!empty($filters['seats'])) {
-            $where[] = 'seats_left >= ?';
-            $params[] = (int) $filters['seats'];
-        }
-
-        $sql = 'SELECT * FROM (' . self::BASE . ') AS r'
-            . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
-            . ' ORDER BY r.departure_at';
-
-        return static::select($sql, $params);
+        return [
+            'departs_at' => 'datetime',
+            'returns_at' => 'datetime',
+            'seats' => 'integer',
+            'price' => 'decimal:2',
+        ];
     }
 
-    public static function forFestival(int $festivalId): array
+    /* ---------- Relations ---------- */
+
+    public function driver(): BelongsTo
     {
-        return static::search(['festival' => $festivalId]);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    public static function findDetailed(int $id): ?array
+    public function festival(): BelongsTo
     {
-        return static::first(self::BASE . ' WHERE r.id = ?', [$id]);
+        return $this->belongsTo(Festival::class);
     }
 
-    public static function byDriver(int $userId): array
+    public function bookings(): HasMany
     {
-        return static::select(self::BASE . ' WHERE r.user_id = ? ORDER BY r.departure_at', [$userId]);
+        return $this->hasMany(RideBooking::class);
     }
 
-    public static function passengers(int $rideId): array
+    /* ---------- Requêtes ---------- */
+
+    /** Ajoute booked_seats (somme des places réservées). */
+    public function scopeWithBookedSeats(Builder $query): void
     {
-        return static::select(
-            'SELECT b.*, u.name FROM ride_bookings b JOIN users u ON u.id = b.user_id WHERE b.ride_id = ? ORDER BY b.created_at',
-            [$rideId]
-        );
+        $query->withSum('bookings as booked_seats', 'seats');
     }
 
-    public static function departureCities(): array
+    /** @param array{festival?: ?string, from?: ?string, seats?: ?string} $filters */
+    public function scopeFilter(Builder $query, array $filters): void
     {
-        return array_column(static::select('SELECT DISTINCT departure_city FROM rides ORDER BY departure_city'), 'departure_city');
+        $query
+            ->when($filters['festival'] ?? null, fn (Builder $q, $id) => $q->where('festival_id', $id))
+            ->when($filters['from'] ?? null, fn (Builder $q, $city) => $q->where('departure_city', 'like', '%' . $city . '%'))
+            ->when($filters['seats'] ?? null, fn (Builder $q, $n) => $q->whereRaw(
+                'seats - coalesce((select sum(seats) from ride_bookings where ride_bookings.ride_id = rides.id), 0) >= ?',
+                [(int) $n]
+            ))
+            ->orderBy('departs_at');
+    }
+
+    /* ---------- Règles métier ---------- */
+
+    public function bookedSeats(): int
+    {
+        return (int) ($this->booked_seats ?? $this->bookings()->sum('seats'));
+    }
+
+    public function seatsLeft(): int
+    {
+        return max(0, $this->seats - $this->bookedSeats());
+    }
+
+    public function isFull(): bool
+    {
+        return $this->seatsLeft() === 0;
+    }
+
+    public function isDrivenBy(?User $user): bool
+    {
+        return $user !== null && $user->id === $this->user_id;
+    }
+
+    public function isBookedBy(?User $user): bool
+    {
+        return $user !== null && $this->bookings()->where('user_id', $user->id)->exists();
+    }
+
+    public function hasBookings(): bool
+    {
+        return $this->bookedSeats() > 0;
     }
 }

@@ -1,101 +1,89 @@
 <?php
-declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Core\Model;
+use App\Enums\HousingType;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** Logement proposé par un membre à proximité d'un festival. */
-final class Housing extends Model
+/** Logement proposé par un membre (l'hôte) à proximité d'un festival. */
+#[Fillable([
+    'festival_id', 'title', 'type', 'city', 'distance_km', 'capacity',
+    'price_per_night', 'description', 'amenities',
+])]
+class Housing extends Model
 {
-    protected static string $table = 'housings';
+    use HasFactory;
 
-    public const TYPES = [
-        'tente'       => 'Emplacement tente',
-        'van'         => 'Van / camping-car',
-        'chambre'     => 'Chambre chez l\'habitant',
-        'appartement' => 'Appartement',
-        'maison'      => 'Maison entière',
-    ];
-
-    private const BASE = '
-        SELECT h.*,
-               u.name AS host_name, u.city AS host_city,
-               f.name AS festival_name, f.slug AS festival_slug, f.city AS festival_city, f.hue AS festival_hue,
-               f.start_date AS festival_start, f.end_date AS festival_end
-        FROM housings h
-        JOIN users u     ON u.id = h.user_id
-        JOIN festivals f ON f.id = h.festival_id';
-
-    public static function search(array $filters = []): array
+    protected function casts(): array
     {
-        $where = [];
-        $params = [];
-
-        if (!empty($filters['festival'])) {
-            $where[] = 'h.festival_id = ?';
-            $params[] = (int) $filters['festival'];
-        }
-        if (!empty($filters['type']) && isset(self::TYPES[$filters['type']])) {
-            $where[] = 'h.type = ?';
-            $params[] = $filters['type'];
-        }
-        if (!empty($filters['guests'])) {
-            $where[] = 'h.capacity >= ?';
-            $params[] = (int) $filters['guests'];
-        }
-        if (!empty($filters['max_price'])) {
-            $where[] = 'h.price_night <= ?';
-            $params[] = (float) $filters['max_price'];
-        }
-
-        $order = ($filters['sort'] ?? '') === 'price' ? 'h.price_night' : 'h.distance_km';
-
-        return static::select(
-            self::BASE . ($where ? ' WHERE ' . implode(' AND ', $where) : '') . ' ORDER BY ' . $order,
-            $params
-        );
+        return [
+            'type' => HousingType::class,
+            'distance_km' => 'decimal:1',
+            'capacity' => 'integer',
+            'price_per_night' => 'decimal:2',
+            'amenities' => 'array',
+        ];
     }
 
-    public static function forFestival(int $festivalId): array
+    /* ---------- Relations ---------- */
+
+    public function host(): BelongsTo
     {
-        return static::search(['festival' => $festivalId]);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    public static function findDetailed(int $id): ?array
+    public function festival(): BelongsTo
     {
-        return static::first(self::BASE . ' WHERE h.id = ?', [$id]);
+        return $this->belongsTo(Festival::class);
     }
 
-    public static function byHost(int $userId): array
+    public function bookings(): HasMany
     {
-        return static::select(self::BASE . ' WHERE h.user_id = ? ORDER BY f.start_date', [$userId]);
+        return $this->hasMany(HousingBooking::class);
     }
 
-    public static function requests(int $housingId): array
+    /* ---------- Requêtes ---------- */
+
+    /** @param array{festival?: ?string, type?: ?string, guests?: ?string, max_price?: ?string, sort?: ?string} $filters */
+    public function scopeFilter(Builder $query, array $filters): void
     {
-        return static::select(
-            'SELECT b.*, u.name FROM housing_bookings b JOIN users u ON u.id = b.user_id WHERE b.housing_id = ? ORDER BY b.created_at',
-            [$housingId]
-        );
+        $query
+            ->when($filters['festival'] ?? null, fn (Builder $q, $id) => $q->where('festival_id', $id))
+            ->when(HousingType::tryFrom((string) ($filters['type'] ?? '')), fn (Builder $q, HousingType $t) => $q->where('type', $t))
+            ->when($filters['guests'] ?? null, fn (Builder $q, $n) => $q->where('capacity', '>=', (int) $n))
+            ->when($filters['max_price'] ?? null, fn (Builder $q, $p) => $q->where('price_per_night', '<=', (float) $p));
+
+        ($filters['sort'] ?? null) === 'price'
+            ? $query->orderBy('price_per_night')
+            : $query->orderBy('distance_km');
     }
 
-    /** Liste de modération avec le nombre de demandes reçues. */
-    public static function adminList(array $filters = []): array
+    /* ---------- Règles métier ---------- */
+
+    public function isHostedBy(?User $user): bool
     {
-        $rows = static::search($filters + ['sort' => 'price']);
-        $counts = [];
-        foreach (static::select('SELECT housing_id, COUNT(*) AS n FROM housing_bookings GROUP BY housing_id') as $r) {
-            $counts[$r['housing_id']] = (int) $r['n'];
-        }
-        foreach ($rows as &$row) {
-            $row['requests_count'] = $counts[$row['id']] ?? 0;
-        }
-        return $rows;
+        return $user !== null && $user->id === $this->user_id;
     }
 
-    public static function typeLabel(string $type): string
+    public function isRequestedBy(?User $user): bool
     {
-        return self::TYPES[$type] ?? ucfirst($type);
+        return $user !== null && $this->bookings()->where('user_id', $user->id)->exists();
+    }
+
+    /** Plus grand groupe parmi les demandes : la capacité ne peut pas descendre en dessous. */
+    public function largestGroup(): int
+    {
+        return (int) $this->bookings()->max('guests');
+    }
+
+    /** Nombre de nuits proposé par défaut : la durée du festival. */
+    public function defaultNights(): int
+    {
+        return $this->festival->durationInDays();
     }
 }

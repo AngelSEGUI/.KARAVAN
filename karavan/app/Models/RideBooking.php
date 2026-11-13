@@ -1,31 +1,35 @@
 <?php
-declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Core\Model;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Réservation d'une ou plusieurs places dans un covoiturage. */
-final class RideBooking extends Model
+/** Place(s) réservée(s) par un passager dans un covoiturage. */
+#[Fillable(['user_id', 'seats', 'message'])]
+class RideBooking extends Model
 {
-    protected static string $table = 'ride_bookings';
+    use HasFactory;
 
-    public static function exists(int $rideId, int $userId): bool
+    protected function casts(): array
     {
-        return static::first('SELECT id FROM ride_bookings WHERE ride_id = ? AND user_id = ?', [$rideId, $userId]) !== null;
+        return ['seats' => 'integer'];
     }
 
-    public static function byPassenger(int $userId): array
+    public function ride(): BelongsTo
     {
-        return static::select(
-            'SELECT b.*, r.departure_city, r.departure_at, r.price, u.name AS driver_name,
-                    f.name AS festival_name, f.slug AS festival_slug, f.hue AS festival_hue
-             FROM ride_bookings b
-             JOIN rides r     ON r.id = b.ride_id
-             JOIN users u     ON u.id = r.user_id
-             JOIN festivals f ON f.id = r.festival_id
-             WHERE b.user_id = ? ORDER BY r.departure_at',
-            [$userId]
-        );
+        return $this->belongsTo(Ride::class);
+    }
+
+    public function passenger(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function total(): float
+    {
+        return (float) $this->ride->price * $this->seats;
     }
 }

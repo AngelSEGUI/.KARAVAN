@@ -1,62 +1,99 @@
 <?php
-declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Core\Model;
+use App\Enums\UserRole;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
-final class User extends Model
+/**
+ * Membre de la communauté. Un même membre peut être conducteur, passager, hôte et voyageur.
+ */
+#[Fillable(['name', 'email', 'password', 'city', 'bio'])]
+#[Hidden(['password', 'remember_token'])]
+class User extends Authenticatable
 {
-    protected static string $table = 'users';
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, Notifiable;
 
-    public static function findByEmail(string $email): ?array
+    protected $attributes = [
+        'role' => 'member',
+    ];
+
+    protected function casts(): array
     {
-        return static::first('SELECT * FROM users WHERE email = ?', [mb_strtolower(trim($email))]);
+        return [
+            'email_verified_at' => 'datetime',
+            'suspended_at' => 'datetime',
+            'password' => 'hashed',
+            'role' => UserRole::class,
+        ];
     }
 
-    /** Liste d'administration avec le nombre d'offres et de réservations de chaque membre. */
-    public static function adminList(string $q = '', string $filter = ''): array
-    {
-        $where = [];
-        $params = [];
-        if ($q !== '') {
-            $where[] = '(u.name LIKE ? OR u.email LIKE ? OR u.city LIKE ?)';
-            array_push($params, "%$q%", "%$q%", "%$q%");
-        }
-        if ($filter === 'admin') {
-            $where[] = "u.role = 'admin'";
-        } elseif ($filter === 'suspended') {
-            $where[] = 'u.suspended = 1';
-        }
+    /* ---------- Relations ---------- */
 
-        return static::select(
-            'SELECT u.*,
-                (SELECT COUNT(*) FROM rides r WHERE r.user_id = u.id)    AS rides_count,
-                (SELECT COUNT(*) FROM housings h WHERE h.user_id = u.id) AS housings_count,
-                (SELECT COUNT(*) FROM ride_bookings b WHERE b.user_id = u.id)
-                  + (SELECT COUNT(*) FROM housing_bookings b WHERE b.user_id = u.id) AS bookings_count
-             FROM users u' . ($where ? ' WHERE ' . implode(' AND ', $where) : '') . ' ORDER BY u.created_at DESC, u.id DESC',
-            $params
-        );
+    /** Trajets proposés en tant que conducteur. */
+    public function rides(): HasMany
+    {
+        return $this->hasMany(Ride::class);
     }
 
-    public static function latest(int $limit = 5): array
+    /** Logements proposés en tant qu'hôte. */
+    public function housings(): HasMany
     {
-        return static::select('SELECT * FROM users ORDER BY created_at DESC, id DESC LIMIT ' . $limit);
+        return $this->hasMany(Housing::class);
     }
 
-    public static function adminCount(): int
+    /** Places réservées en tant que passager. */
+    public function rideBookings(): HasMany
     {
-        return (int) (static::first("SELECT COUNT(*) AS n FROM users WHERE role = 'admin' AND suspended = 0")['n'] ?? 0);
+        return $this->hasMany(RideBooking::class);
     }
 
-    public static function register(string $name, string $email, string $password, ?string $city): int
+    /** Demandes de séjour en tant que voyageur. */
+    public function housingBookings(): HasMany
     {
-        return static::create([
-            'name'     => trim($name),
-            'email'    => mb_strtolower(trim($email)),
-            'password' => password_hash($password, PASSWORD_DEFAULT),
-            'city'     => $city ? trim($city) : null,
-        ]);
+        return $this->hasMany(HousingBooking::class);
+    }
+
+    /* ---------- Statut ---------- */
+
+    public function isAdmin(): bool
+    {
+        return $this->role === UserRole::Admin;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->suspended_at !== null;
+    }
+
+    public function scopeActiveAdmins(Builder $query): void
+    {
+        $query->where('role', UserRole::Admin)->whereNull('suspended_at');
+    }
+
+    /** "Léa Martin" -> "LM" */
+    protected function initials(): Attribute
+    {
+        return Attribute::get(function () {
+            $parts = preg_split('/\s+/', trim($this->name)) ?: [];
+
+            return Str::upper(Str::substr($parts[0] ?? '', 0, 1) . Str::substr($parts[1] ?? '', 0, 1));
+        });
+    }
+
+    /** "Léa Martin" -> "Léa" */
+    protected function firstName(): Attribute
+    {
+        return Attribute::get(fn () => Str::before(trim($this->name), ' '));
     }
 }

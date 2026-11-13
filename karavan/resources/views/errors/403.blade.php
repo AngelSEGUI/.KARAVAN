@@ -1,0 +1,1 @@
+@include('errors.page', ['title' => 'Accès réservé', 'icon' => 'lock', 'message' => ($exception->getMessage() && $exception->getMessage() !== 'This action is unauthorized.') ? $exception->getMessage() : "Vous n'avez pas le droit d'accéder à cette page."])

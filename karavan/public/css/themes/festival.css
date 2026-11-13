@@ -1,0 +1,99 @@
+/* ==========================================================================
+   THÈME « FESTIVAL » (thème par défaut)
+   Chaleureux, couleurs d'affiche rétro, titres très gras.
+
+   Un thème ne contient QUE des variables CSS. Tous les composants du site
+   (dans base.css, layout.css, components.css, pages.css, admin.css) lisent
+   ces variables : changez une valeur ici et tout le site suit.
+   Pour créer un thème : copiez ce fichier, renommez-le, modifiez les valeurs,
+   puis déclarez-le dans config/karavan.php. Guide complet : docs/THEMES.md
+   ========================================================================== */
+
+/* 1. Polices — chargées depuis Google Fonts (ou remplacez par vos fichiers) */
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap");
+
+:root {
+    color-scheme: light;
+
+    /* 2. Typographie ------------------------------------------------------- */
+    --font-display: "Bricolage Grotesque", system-ui, sans-serif;  /* titres, prix, chiffres */
+    --font-body: "DM Sans", system-ui, sans-serif;                 /* texte courant, formulaires */
+    --font-size-base: 16px;
+    --heading-weight: 800;
+    --heading-tracking: -0.02em;      /* espacement des lettres des titres */
+    --display-transform: uppercase;   /* noms de festivals sur les affiches : uppercase | none */
+
+    /* 3. Couleurs de fond et de texte ------------------------------------ */
+    --color-bg: #f7f1e8;              /* fond de page */
+    --color-bg-alt: #f3eee6;          /* fond secondaire (admin, bandeaux) */
+    --color-surface: #fffdf9;         /* cartes, panneaux */
+    --color-input: #ffffff;           /* champs de formulaire */
+    --color-text: #17132b;            /* texte principal */
+    --color-text-soft: #3b3557;       /* texte secondaire appuyé */
+    --color-muted: #6d6884;           /* texte discret, légendes */
+    --color-line: #e7dfd2;            /* bordures */
+    --color-line-strong: #3b3557;     /* bordures au survol */
+
+    /* 4. Couleurs de marque ----------------------------------------------- */
+    --color-primary: #ff5a36;         /* boutons principaux, liens forts */
+    --color-primary-hover: #e2431f;
+    --color-on-primary: #ffffff;      /* texte sur fond primaire */
+    --color-primary-soft: #fff0ea;    /* fonds d'icônes, sélection */
+    --color-accent: #ff3e88;          /* seconde couleur des dégradés */
+    --color-highlight: #ffd23f;       /* badges « À la une », chiffres clés sur fond sombre */
+    --color-on-highlight: #17132b;
+
+    /* Blocs « inversés » (fond foncé) : pastille de date, avatars, programmation… */
+    --color-inverse: #17132b;
+    --color-on-inverse: #ffffff;
+    --color-on-inverse-muted: rgba(255, 255, 255, 0.72);
+    --color-inverse-accent: #ffd23f;      /* texte coloré sur blocs inversés (initiales, mois, pastilles) */
+
+    /* 5. Couleurs d'état --------------------------------------------------- */
+    --color-success: #0b7a5a;
+    --color-success-bg: #e3f8f0;
+    --color-danger: #d6336c;
+    --color-danger-bg: #fde8ee;
+    --color-warning: #8a5a00;
+    --color-warning-bg: #fff1d1;
+    --color-info: #6b5100;
+    --color-info-bg: #fff5d6;
+
+    /* 6. Zones particulières ---------------------------------------------- */
+    --header-bg: rgba(247, 241, 232, 0.88);  /* en-tête (légèrement transparent) */
+    --footer-bg: #17132b;
+    --footer-text: rgba(255, 255, 255, 0.72);
+    --footer-heading: #ffffff;
+    --band-dark-text: #ffffff;             /* texte sur la section sombre */
+    --band-dark-accent: #ffd23f;          /* chiffres clés sur la section sombre */
+    --band-dark-bg: #17132b;                  /* section « Comment ça marche » */
+    --sidebar-bg: #17132b;                    /* barre latérale de l'admin */
+    --gradient-brand: linear-gradient(120deg, var(--color-primary), var(--color-accent));
+
+    /* 7. Formes ------------------------------------------------------------ */
+    --radius-sm: 10px;
+    --radius: 18px;                   /* cartes */
+    --radius-lg: 28px;                /* grands blocs (affiche, bandeau) */
+    --radius-input: 12px;
+    --radius-button: 999px;           /* 999px = boutons « pilule » ; 8px = boutons carrés */
+    --border-width: 1px;
+
+    /* 8. Ombres ------------------------------------------------------------ */
+    --shadow: 0 1px 2px rgba(23, 19, 43, 0.06), 0 8px 24px -8px rgba(23, 19, 43, 0.14);
+    --shadow-lg: 0 24px 48px -16px rgba(23, 19, 43, 0.28);
+    --shadow-button: 0 6px 16px -6px rgba(255, 90, 54, 0.7);
+
+    /* 9. Couvertures générées (affiches des festivals) --------------------
+       Chaque festival a sa teinte (0-359, réglable dans l'admin).
+       Ces réglages définissent la saturation et la luminosité communes. */
+    --cover-saturation: 85%;
+    --cover-lightness: 56%;
+    --cover-sun: block;               /* block | none : soleil rétro */
+    --cover-hills: block;             /* block | none : collines */
+
+    /* 10. Personnalité ----------------------------------------------------- */
+    --logo-tilt: -6deg;               /* rotation du logo */
+    --poster-tilt: 1.5deg;            /* rotation de l'affiche de l'accueil */
+    --hover-lift: -4px;               /* déplacement des cartes au survol */
+    --transition: 0.18s ease;
+}

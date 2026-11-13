@@ -1,0 +1,144 @@
+/* ==========================================================================
+   LAYOUT — structure des pages : conteneur, en-tête, navigation, pied de page,
+   barre d'onglets mobile, sections et grilles.
+   Points de rupture : 640px (tablette) et 900px (ordinateur).
+   ========================================================================== */
+
+:root {
+    --container: 1180px;
+    --gutter: 16px;
+    --header-h: 68px;
+    --tabbar-h: 64px;
+}
+
+body { padding-bottom: var(--tabbar-h); }   /* place pour la barre d'onglets mobile */
+
+.container { width: 100%; max-width: var(--container); margin: 0 auto; padding: 0 var(--gutter); }
+.container-narrow { max-width: 780px; }
+
+/* ---------- Sections ---------- */
+.section { padding: 48px 0; }
+.section-tight { padding: 8px 0 32px; }
+.section-alt { background: var(--color-surface); border-block: var(--border-width) solid var(--color-line); }
+.section-dark { background: var(--band-dark-bg); color: var(--band-dark-text); }
+
+.section-head {
+    display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between;
+    gap: 16px; margin-bottom: 24px;
+}
+.section-head h2 { margin: 0; }
+
+.page-head { padding: 32px 0 24px; }
+.page-head h1 { font-size: clamp(2rem, 6vw, 2.9rem); }
+.page-head .lead { margin: 0; }
+.page-head-row { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 20px; }
+
+/* ---------- Grilles ---------- */
+.grid { display: grid; gap: 16px; }
+.stack { display: grid; gap: 12px; }
+
+/* ---------- En-tête ---------- */
+.site-header {
+    position: sticky; top: 0; z-index: 50;
+    height: var(--header-h);
+    background: var(--header-bg);
+    backdrop-filter: saturate(1.4) blur(12px);
+    -webkit-backdrop-filter: saturate(1.4) blur(12px);
+    border-bottom: var(--border-width) solid var(--color-line);
+}
+.header-inner { height: 100%; display: flex; align-items: center; gap: 24px; }
+
+.logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; letter-spacing: -0.04em;
+    text-decoration: none;
+}
+.logo-mark {
+    display: grid; place-items: center;
+    width: 36px; height: 36px; border-radius: 11px;
+    background: var(--gradient-brand); color: var(--color-on-primary);
+    transform: rotate(var(--logo-tilt));
+}
+.logo-mark svg { width: 22px; height: 22px; }
+.logo-mark-lg { width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 16px; }
+.logo-mark-lg svg { width: 32px; height: 32px; }
+
+.main-nav { display: none; gap: 4px; }
+.main-nav a {
+    padding: 8px 14px; border-radius: var(--radius-button);
+    text-decoration: none; font-weight: 500; color: var(--color-text-soft);
+    transition: background var(--transition);
+}
+.main-nav a:hover { background: var(--color-primary-soft); }
+.main-nav a.is-active { background: var(--color-inverse); color: var(--color-on-inverse); }
+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* Menus déroulants (<details>, fonctionnent sans JavaScript) */
+.dropdown { position: relative; }
+.dropdown summary { list-style: none; cursor: pointer; }
+.dropdown summary::-webkit-details-marker { display: none; }
+.dropdown-menu {
+    position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; min-width: 210px;
+    padding: 6px;
+    background: var(--color-surface); border: var(--border-width) solid var(--color-line);
+    border-radius: 14px; box-shadow: var(--shadow-lg);
+}
+.dropdown-right { left: auto; right: 0; }
+.dropdown-menu a, .dropdown-menu button {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 10px 12px; border: 0; border-radius: 9px; background: none;
+    font: inherit; color: var(--color-text); text-decoration: none; text-align: left; cursor: pointer;
+}
+.dropdown-menu a:hover, .dropdown-menu button:hover { background: var(--color-bg-alt); }
+.dropdown-menu form { margin: 0; }
+.dropdown-menu hr { border: 0; border-top: var(--border-width) solid var(--color-line); margin: 6px 0; }
+.dropdown-label { display: block; padding: 8px 12px 6px; font-size: 0.8rem; color: var(--color-muted); }
+
+/* ---------- Barre d'onglets (mobile uniquement) ---------- */
+.tabbar {
+    position: fixed; inset: auto 0 0 0; z-index: 50;
+    height: var(--tabbar-h);
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--color-surface); border-top: var(--border-width) solid var(--color-line);
+}
+.tabbar a {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    font-size: 0.7rem; font-weight: 500; color: var(--color-muted); text-decoration: none;
+}
+.tabbar a.is-active { color: var(--color-primary); }
+.tabbar .icon { width: 22px; height: 22px; }
+
+/* ---------- Pied de page ---------- */
+.site-footer { margin-top: 64px; padding: 48px 0 24px; background: var(--footer-bg); color: var(--footer-text); }
+.footer-inner { display: grid; gap: 32px; }
+.footer-inner h4 {
+    font-family: var(--font-body); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--footer-heading);
+}
+.footer-inner a:not(.logo) { display: block; padding: 4px 0; text-decoration: none; }
+.footer-inner a:not(.logo):hover { text-decoration: underline; }
+.footer-inner p { max-width: 36ch; margin-top: 12px; }
+.footer-bottom {
+    margin-top: 32px; padding-top: 24px; font-size: 0.85rem;
+    border-top: var(--border-width) solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+/* ---------- Responsive ---------- */
+.hide-sm { display: none; }
+
+@media (min-width: 640px) {
+    :root { --gutter: 24px; }
+    .hide-sm { display: inline; }
+    .grid-2, .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    .footer-inner { grid-template-columns: 2fr 1fr 1fr; }
+}
+
+@media (min-width: 900px) {
+    body { padding-bottom: 0; }
+    .tabbar { display: none; }
+    .main-nav { display: flex; }
+    .section { padding: 72px 0; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .site-footer { margin-top: 96px; }
+}

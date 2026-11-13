@@ -1,137 +1,170 @@
 # Karavan 🚐
 
 Application communautaire pour festivaliers :
-- **Découverte** de festivals (mise en avant, filtres par style / région / mois, tri)
-- **Covoiturage** : proposer un trajet, réserver des places
-- **Logements** proposés par la communauté près des festivals (tente, van, chambre, appartement, maison)
-- Comptes membres, espace personnel (mes trajets, mes logements, mes réservations)
 
-PHP 8.1+ (extension `pdo_sqlite` requise ; `mbstring` conseillée mais facultative) sans dépendance ni framework, architecture **MVC**, design responsive (mobile first, barre d'onglets sur mobile).
+- **Découverte** des festivals : mise en avant, filtres par style, région et mois, tri.
+- **Covoiturage** : proposer, modifier ou supprimer un trajet, réserver des places.
+- **Logements** proposés par la communauté près des festivals : publication, modification, demandes de séjour.
+- **Comptes** : inscription, connexion, espace personnel, modification du profil et du mot de passe, suppression du compte.
+- **Administration** : catalogue des festivals, modération des annonces, gestion des membres (rôles, suspension).
+- **Thèmes graphiques** interchangeables et guide de styles (voir [`docs/THEMES.md`](docs/THEMES.md)).
 
-## Démarrage rapide
+Construit avec **Laravel 13** (PHP 8.3+), Blade, SQLite par défaut (MySQL/PostgreSQL possibles). Aucun outil front à installer : CSS et JavaScript simples, sans compilation.
+
+---
+
+## Installation
+
+### 1. Prérequis
+
+- **PHP 8.3 ou plus** avec les extensions `mbstring`, `xml`, `sqlite3` (pdo_sqlite), `curl`, `zip`, `openssl`.
+- **Composer** (le gestionnaire de dépendances de PHP).
+
+**Linux (Ubuntu / Debian)**
 
 ```bash
-cd karavan
-php -S localhost:8000 -t public public/index.php
+sudo apt install php-cli php-mbstring php-xml php-sqlite3 php-curl php-zip unzip composer
 ```
 
-Ouvrir http://localhost:8000. Au premier lancement, la base SQLite (`storage/karavan.sqlite`) est créée et remplie automatiquement.
+**Windows**
 
-Comptes de démo (mot de passe `karavan`) :
-- **Administrateur** : `admin@karavan.test` → espace `/admin`
-- Membres : `lea@karavan.test`, `malik@karavan.test`, `chloe@karavan.test`…
+1. PHP : téléchargez le zip « VS17 x64 Thread Safe » de PHP 8.4 sur <https://windows.php.net/download/>, décompressez-le dans `C:\php`, ajoutez `C:\php` au `Path`.
+2. Dans `C:\php`, copiez `php.ini-development` en `php.ini`, puis enlevez le `;` devant ces lignes :
+   ```
+   extension_dir = "ext"
+   extension=curl
+   extension=fileinfo
+   extension=mbstring
+   extension=openssl
+   extension=pdo_sqlite
+   extension=zip
+   ```
+3. Composer : installez-le avec `Composer-Setup.exe` depuis <https://getcomposer.org/download/>.
+4. Ouvrez un **nouveau** terminal et vérifiez : `php -v` et `composer -V`.
 
-N'importe qui peut créer un compte membre via `/inscription`.
+**macOS** : `brew install php composer`
 
-Réinitialiser les données : `php database/seed.php`
+### 2. Installer le projet (une seule fois)
 
-> Les dates, programmations et chiffres des festivals sont **fictifs** (données de démonstration).
+Dans le dossier du projet :
 
-Avec Apache (XAMPP, WAMP, MAMP) : copier le dossier dans `htdocs/` puis ouvrir `http://localhost/karavan/`. Le `.htaccess` racine envoie tout vers `public/` ; activer `mod_rewrite` pour des URL propres. En production, faire pointer le VirtualHost directement sur `public/`.
-
-### Le site s'affiche sans mise en forme ?
-
-0. Regarder **en bas de la page** ou dans le terminal du serveur : une erreur PHP peut interrompre l'affichage. Depuis la v1.2, une page « Oups, une erreur est survenue » explique la cause et la solution.
-
-1. Vérifier que vous ouvrez bien `http://localhost:8000` (ou `http://localhost/karavan/`), et **pas** le fichier en double-cliquant dessus (`file:///…`) : un site PHP doit passer par un serveur.
-2. Forcer le rechargement du cache : `Ctrl + F5` (Windows) ou `Cmd + Shift + R` (Mac).
-3. Ouvrir les outils de développement (`F12`) → onglet **Réseau**, recharger, et regarder la ligne `style.css` : son statut (404, 403…) et son URL indiquent la cause.
-4. Sous Apache : `mod_rewrite` doit être actif et `AllowOverride All` autorisé pour le dossier.
-
-## Structure
-
-```
-karavan/
-├── public/                 ← seul dossier exposé au web
-│   ├── index.php           Front controller (point d'entrée unique)
-│   ├── .htaccess
-│   └── assets/css|js
-├── config/
-│   ├── config.php          Paramètres (BDD, debug)
-│   └── routes.php          Table de routage  ← ajouter une page commence ici
-├── app/
-│   ├── bootstrap.php       Autoload PSR-4, session, config
-│   ├── helpers.php         e(), url(), csrf_field(), old(), date_fr(), price()…
-│   ├── Core/               Micro-framework : Router, Controller, Model, View, Database, Auth, Validator
-│   ├── Controllers/        Home, Festival, Ride, Housing, Auth, Account
-│   │   └── Admin/          Dashboard, Festival, Ride, Housing, User (rôle admin requis)
-│   ├── Models/             Festival, Ride, Housing, User, RideBooking, HousingBooking
-│   └── Views/
-│       ├── layouts/        main.php (site) et admin.php (administration)
-│       ├── partials/       Cartes réutilisables (festival, trajet, logement), icônes
-│       └── home/ festivals/ rides/ housings/ auth/ account/ admin/ errors/
-├── database/
-│   ├── schema.sql
-│   └── seed.php
-└── storage/                Base SQLite
+```bash
+composer run setup
 ```
 
-## Routes
+Cette commande installe les dépendances, crée le fichier `.env`, génère la clé de l'application, crée la base SQLite et charge les données de démonstration.
 
-| Méthode | URL | Action |
-|---|---|---|
-| GET | `/` | Accueil / découverte |
-| GET | `/festivals` | Catalogue filtrable (`q`, `genre`, `region`, `month`, `sort`) |
-| GET | `/festivals/{slug}` | Fiche festival + trajets + logements |
-| GET | `/covoiturages` | Liste (`festival`, `from`, `seats`) |
-| GET/POST | `/covoiturages/nouveau`, `/covoiturages` | Proposer un trajet 🔒 |
-| GET | `/covoiturages/{id}` | Détail du trajet |
-| POST | `/covoiturages/{id}/reserver` | Réserver des places 🔒 |
-| GET | `/logements` | Liste (`festival`, `type`, `guests`, `max_price`, `sort`) |
-| GET/POST | `/logements/nouveau`, `/logements` | Proposer un logement 🔒 |
-| GET | `/logements/{id}` | Détail du logement |
-| POST | `/logements/{id}/reserver` | Demande de séjour 🔒 |
-| GET/POST | `/connexion`, `/inscription` | Authentification |
-| POST | `/deconnexion` | Déconnexion |
-| GET | `/mon-espace` | Tableau de bord du membre 🔒 |
-| GET/POST | `/admin/...` | Administration (voir plus bas) 🛡️ |
+### 3. Lancer le site
 
-## Administration
+```bash
+php artisan serve
+```
 
-Accessible aux comptes ayant le rôle `admin` (lien « Administration » dans le menu du profil). Toutes les actions sont protégées par CSRF et demandent une confirmation.
+Ouvrez **<http://localhost:8000>**. `Ctrl + C` arrête le serveur.
 
-| URL | Fonction |
+### Comptes de démonstration
+
+Mot de passe pour tous les comptes : **`karavan`**
+
+| Compte | Profil |
 |---|---|
-| `/admin` | Tableau de bord : chiffres clés, activité récente, festivals sans offre, nouveaux membres |
-| `/admin/festivals` | Créer, modifier, supprimer un festival ; étoile = mettre à la une ; aperçu en direct de la couverture |
-| `/admin/covoiturages` | Modération des trajets (taux de remplissage, suppression) |
-| `/admin/logements` | Modération des logements (demandes reçues, suppression) |
-| `/admin/membres` | Recherche, nommer/retirer un admin, suspendre/réactiver, supprimer un compte |
+| `admin@karavan.test` | Administrateur (accès à `/admin`) |
+| `lea@karavan.test` | Membre : trajets, un logement, une réservation |
+| `malik@karavan.test`, `chloe@karavan.test`, `thomas@karavan.test`, `ines@karavan.test`, `hugo@karavan.test` | Membres |
 
-Règles :
-- Un compte **suspendu** ne peut plus se connecter et sa session en cours est fermée immédiatement ; ses offres restent visibles (à supprimer si besoin).
-- Supprimer un festival ou un membre supprime en cascade ses trajets, logements et réservations.
-- Un admin ne peut pas modifier son propre compte depuis la liste (pas de risque de se retirer ses droits par erreur).
-- **Premier admin sur une base existante** : la migration automatique (`app/Core/Migrator.php`) ajoute les colonnes `role` et `suspended` et nomme administrateur le compte le plus ancien. Autre option :
-  `sqlite3 storage/karavan.sqlite "UPDATE users SET role='admin' WHERE email='vous@exemple.fr'"`
+> Les festivals, dates et programmations sont **fictifs** (données de démo dans `database/seeders/data/demo.php`).
 
-Le code se trouve dans `app/Controllers/Admin/` (tous héritent de `AdminController`, qui vérifie le rôle), `app/Views/admin/`, `app/Views/layouts/admin.php` et `public/assets/css/admin.css`.
+---
 
-## Ajouter une fonctionnalité (exemple : page « À propos »)
+## Commandes utiles
 
-1. Route dans `config/routes.php` : `$router->get('/a-propos', [PageController::class, 'about']);`
-2. Contrôleur `app/Controllers/PageController.php` qui étend `App\Core\Controller` et appelle `$this->render('pages/about', [...])`
-3. Vue `app/Views/pages/about.php`
+| Commande | Effet |
+|---|---|
+| `php artisan serve` | Lance le site sur http://localhost:8000 |
+| `php artisan test` | Lance les tests automatisés (43 tests) |
+| `composer run demo-reset` | **Efface** la base et recharge les données de démo |
+| `php artisan route:list` | Liste toutes les URL du site |
+| `php artisan migrate` | Applique les nouvelles migrations de la base |
+| `php artisan tinker` | Console interactive (ex. `User::count()`) |
 
-Pour les données : créer un modèle dans `app/Models/` qui étend `App\Core\Model` avec `protected static string $table = '...'` — `find()`, `all()`, `create()`, `update()` sont fournis.
+---
 
-## Sécurité incluse
+## Structure du projet
 
-- Échappement systématique (`e()`), requêtes préparées PDO
-- Jeton CSRF sur tous les formulaires POST
-- Mots de passe hachés (`password_hash`), régénération de session à la connexion
-- Validation serveur avec messages en français et conservation de la saisie
+```
+app/
+├── Enums/                 UserRole (membre/admin), HousingType (tente, van…)
+├── Http/
+│   ├── Controllers/       Home, Festival, Ride, Housing, Account, Profile, StyleGuide
+│   │   ├── Auth/          Connexion, inscription
+│   │   └── Admin/         Tableau de bord, festivals, trajets, logements, membres
+│   ├── Middleware/        EnsureUserIsAdmin, LogoutSuspendedUsers
+│   └── Requests/          Validation des formulaires (RideRequest, HousingRequest…)
+├── Models/                User, Festival, Ride, Housing, RideBooking, HousingBooking
+├── Policies/              Qui peut modifier / supprimer / réserver quoi
+├── Support/Theme.php      Choix du thème graphique
+└── helpers.php            euros(), km(), plural()
+config/karavan.php         Thèmes, pagination, limites (places, nuits…)
+database/
+├── migrations/            Structure de la base
+├── factories/             Données factices pour les tests
+└── seeders/               Données de démonstration
+lang/fr/                   Messages en français (validation, connexion)
+public/css/                Styles : themes/, base, layout, components, pages, admin
+public/js/app.js           Petites interactions (filtres, onglets, totaux…)
+resources/views/
+├── components/            Composants Blade réutilisables (<x-ride-card>, <x-field>…)
+│   └── layouts/           app (site) et admin
+├── home, festivals/, rides/, housings/, account/, auth/, admin/
+├── styleguide.blade.php   Guide de styles (/guide-styles)
+└── errors/                Pages 403, 404, 419, 429, 500, 503
+routes/web.php             Toutes les URL (en français) et leurs droits d'accès
+tests/Feature/             Tests automatisés des parcours
+docs/THEMES.md             Guide pour adapter l'interface graphique
+```
 
-## Passer sur MySQL
+### Ajouter une fonctionnalité, en pratique
 
-1. Dans `config/config.php` : `'driver' => 'mysql'` + identifiants
-2. Dans `database/schema.sql`, remplacer `INTEGER PRIMARY KEY AUTOINCREMENT` par `INT AUTO_INCREMENT PRIMARY KEY`
-3. Lancer `php database/seed.php`
+1. **Base** : `php artisan make:migration create_xxx_table`, puis `php artisan migrate`.
+2. **Modèle** : `app/Models/Xxx.php` (relations, requêtes réutilisables).
+3. **Route** dans `routes/web.php`, avec le bon groupe (`auth`, `admin`…).
+4. **Contrôleur** dans `app/Http/Controllers/`, validation dans `app/Http/Requests/`, droits dans `app/Policies/`.
+5. **Vue** dans `resources/views/`, en réutilisant les composants (`<x-field>`, `<x-empty>`…).
+6. **Test** dans `tests/Feature/`, puis `php artisan test`.
 
-Les requêtes des modèles sont écrites pour fonctionner sur les deux moteurs.
+---
 
-## Pistes d'évolution
+## Règles métier
 
-- Upload de photos (festivals, logements) — la couverture est aujourd'hui générée en CSS à partir d'une teinte
-- Messagerie entre membres, validation/refus des demandes par le conducteur ou l'hôte
-- Avis et notes des membres, carte interactive (Leaflet), administration des festivals
+- **Modifier une annonce** : seul son auteur (ou un admin) peut modifier ou supprimer un trajet ou un logement.
+- **Annonce déjà réservée** : le festival ne peut plus être changé, et le nombre de places (ou la capacité) ne peut pas descendre sous ce qui est déjà réservé.
+- **Supprimer une annonce, un festival ou un compte** supprime aussi les réservations liées (avec confirmation).
+- **Réserver** : impossible sur sa propre annonce, une seule fois par annonce, dans la limite des places ou de la capacité.
+- **Compte suspendu** : connexion refusée, et la session en cours est coupée immédiatement.
+- **Dernier administrateur** : il ne peut pas supprimer son compte tant qu'aucun autre admin n'existe.
+- **Sécurité** : jeton CSRF sur tous les formulaires, mots de passe hachés, limite de 6 tentatives de connexion par minute, échappement automatique dans les vues.
+
+---
+
+## Mise en production
+
+1. Dans `.env` : `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://votre-domaine.fr`.
+2. Faites pointer le serveur web sur le dossier **`public/`**.
+3. `composer install --no-dev --optimize-autoloader`, puis `php artisan migrate --force` et `php artisan optimize`.
+4. Donnez les droits d'écriture sur `storage/` et `bootstrap/cache/`.
+5. Créez votre compte, puis nommez-le administrateur :
+   ```bash
+   php artisan tinker --execute="App\Models\User::where('email', 'vous@exemple.fr')->update(['role' => 'admin'])"
+   ```
+   Ne chargez pas les données de démo en production (mots de passe connus).
+
+Pour MySQL : renseignez `DB_CONNECTION=mysql`, `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` dans `.env`, puis `php artisan migrate`.
+
+---
+
+## Prochaines étapes envisagées
+
+- Acceptation / refus des réservations par le conducteur ou l'hôte (statut de réservation, notifications par email).
+- Messagerie entre membres.
+- Photos des annonces et des festivals, avatars.
+- Mot de passe oublié et vérification de l'email (fournis par Laravel, à brancher sur un service d'envoi d'emails).

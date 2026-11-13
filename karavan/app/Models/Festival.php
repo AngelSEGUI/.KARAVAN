@@ -1,131 +1,142 @@
 <?php
-declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Core\Model;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
-final class Festival extends Model
+#[Fillable([
+    'slug', 'name', 'city', 'region', 'venue', 'starts_on', 'ends_on', 'genres', 'lineup',
+    'tagline', 'description', 'attendance', 'price_from', 'hue', 'is_featured',
+])]
+class Festival extends Model
 {
-    protected static string $table = 'festivals';
+    use HasFactory;
 
-    /** Sous-requêtes comptant les offres de la communauté pour chaque festival. */
-    private const COUNTS = '
-        (SELECT COUNT(*) FROM rides r WHERE r.festival_id = f.id)    AS rides_count,
-        (SELECT COUNT(*) FROM housings h WHERE h.festival_id = f.id) AS housings_count';
-
-    public static function findBySlug(string $slug): ?array
+    protected function casts(): array
     {
-        return static::first('SELECT f.*, ' . self::COUNTS . ' FROM festivals f WHERE slug = ?', [$slug]);
+        return [
+            'starts_on' => 'date',
+            'ends_on' => 'date',
+            'genres' => 'array',
+            'lineup' => 'array',
+            'attendance' => 'integer',
+            'price_from' => 'decimal:2',
+            'hue' => 'integer',
+            'is_featured' => 'boolean',
+        ];
     }
 
-    public static function featured(int $limit = 5): array
+    /** Les URL utilisent le slug : /festivals/hellfest */
+    public function getRouteKeyName(): string
     {
-        return static::select(
-            'SELECT f.*, ' . self::COUNTS . ' FROM festivals f WHERE featured = 1 ORDER BY start_date LIMIT ' . $limit
-        );
+        return 'slug';
     }
 
-    /** Recherche multi-critères pour la page découverte. */
-    public static function search(array $filters = []): array
+    protected static function booted(): void
     {
-        $where = [];
-        $params = [];
-
-        if (!empty($filters['q'])) {
-            $where[] = '(f.name LIKE ? OR f.city LIKE ? OR f.lineup LIKE ?)';
-            $like = '%' . $filters['q'] . '%';
-            array_push($params, $like, $like, $like);
-        }
-        if (!empty($filters['genre'])) {
-            // Requête portable SQLite / MySQL sur une liste "a,b,c"
-            $g = $filters['genre'];
-            $where[] = '(f.genres = ? OR f.genres LIKE ? OR f.genres LIKE ? OR f.genres LIKE ?)';
-            array_push($params, $g, $g . ',%', '%,' . $g, '%,' . $g . ',%');
-        }
-        if (!empty($filters['region'])) {
-            $where[] = 'f.region = ?';
-            $params[] = $filters['region'];
-        }
-        if (!empty($filters['month'])) {
-            $where[] = 'SUBSTR(f.start_date, 6, 2) = ?';
-            $params[] = str_pad((string) (int) $filters['month'], 2, '0', STR_PAD_LEFT);
-        }
-
-        $order = match ($filters['sort'] ?? 'date') {
-            'name'     => 'f.name',
-            'popular'  => 'f.attendance DESC',
-            'offers'   => '(rides_count + housings_count) DESC',
-            default    => 'f.start_date',
-        };
-
-        $sql = 'SELECT f.*, ' . self::COUNTS . ' FROM festivals f'
-            . ($where ? ' WHERE ' . implode(' AND ', $where) : '')
-            . ' ORDER BY ' . $order;
-
-        return static::select($sql, $params);
-    }
-
-    public static function genres(): array
-    {
-        $genres = [];
-        foreach (static::select('SELECT genres FROM festivals') as $row) {
-            foreach (explode(',', $row['genres']) as $g) {
-                $genres[trim($g)] = true;
+        // Slug généré depuis le nom s'il n'est pas fourni
+        static::saving(function (Festival $festival) {
+            if (blank($festival->slug)) {
+                $festival->slug = Str::slug($festival->name);
             }
+        });
+    }
+
+    /* ---------- Relations ---------- */
+
+    public function rides(): HasMany
+    {
+        return $this->hasMany(Ride::class);
+    }
+
+    public function housings(): HasMany
+    {
+        return $this->hasMany(Housing::class);
+    }
+
+    /* ---------- Requêtes réutilisables ---------- */
+
+    /** Ajoute rides_count et housings_count. */
+    public function scopeWithOfferCounts(Builder $query): void
+    {
+        $query->withCount(['rides', 'housings']);
+    }
+
+    public function scopeFeatured(Builder $query): void
+    {
+        $query->where('is_featured', true);
+    }
+
+    /**
+     * Filtres de la page découverte.
+     *
+     * @param  array{q?: ?string, genre?: ?string, region?: ?string, month?: ?string, sort?: ?string}  $filters
+     */
+    public function scopeFilter(Builder $query, array $filters): void
+    {
+        $query
+            ->when($filters['q'] ?? null, function (Builder $q, string $term) {
+                $like = '%' . $term . '%';
+                $q->where(fn (Builder $w) => $w->where('name', 'like', $like)
+                    ->orWhere('city', 'like', $like)
+                    ->orWhere('lineup', 'like', $like));
+            })
+            // genres est stocké en JSON : on cherche la valeur entre guillemets (SQLite et MySQL)
+            ->when($filters['genre'] ?? null, fn (Builder $q, string $g) => $q->where('genres', 'like', '%"' . $g . '"%'))
+            ->when($filters['region'] ?? null, fn (Builder $q, string $r) => $q->where('region', $r))
+            ->when($filters['month'] ?? null, fn (Builder $q, string $m) => $q->whereMonth('starts_on', (int) $m));
+
+        match ($filters['sort'] ?? 'date') {
+            'name' => $query->orderBy('name'),
+            'popular' => $query->orderByDesc('attendance'),
+            'offers' => $query->orderByRaw('(rides_count + housings_count) desc'),
+            default => $query->orderBy('starts_on'),
+        };
+    }
+
+    /* ---------- Listes pour les filtres ---------- */
+
+    /** @return Collection<int, string> */
+    public static function allGenres(): Collection
+    {
+        return static::query()->pluck('genres')->flatten()->unique()->sort()->values();
+    }
+
+    /** @return Collection<int, string> */
+    public static function allRegions(): Collection
+    {
+        return static::query()->distinct()->orderBy('region')->pluck('region');
+    }
+
+    /** Liste légère pour les menus déroulants. */
+    public static function options(): Collection
+    {
+        return static::query()->orderBy('starts_on')->get(['id', 'name', 'city', 'starts_on']);
+    }
+
+    /* ---------- Affichage ---------- */
+
+    /** "17–20 juin 2027" ou "30 juin – 3 juil. 2027" */
+    public function dateRange(): string
+    {
+        $start = $this->starts_on;
+        $end = $this->ends_on;
+
+        if ($start->isSameMonth($end)) {
+            return $start->day . '–' . $end->translatedFormat('j F Y');
         }
-        $list = array_keys($genres);
-        sort($list);
-        return $list;
+
+        return $start->translatedFormat('j M') . ' – ' . $end->translatedFormat('j M Y');
     }
 
-    public static function regions(): array
+    public function durationInDays(): int
     {
-        return array_column(static::select('SELECT DISTINCT region FROM festivals ORDER BY region'), 'region');
-    }
-
-    /** Liste légère pour les menus déroulants des formulaires. */
-    public static function options(): array
-    {
-        return static::select('SELECT id, name, city, start_date FROM festivals ORDER BY start_date');
-    }
-
-    /** "Les Vieilles Charrues" -> "les-vieilles-charrues" */
-    public static function slugify(string $text): string
-    {
-        // Accents retirés sans dépendre de l'extension iconv
-        $text = strtr($text, [
-            'à' => 'a', 'â' => 'a', 'ä' => 'a', 'á' => 'a', 'ã' => 'a', 'å' => 'a', 'æ' => 'ae', 'ç' => 'c',
-            'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e', 'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
-            'ñ' => 'n', 'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'ö' => 'o', 'õ' => 'o', 'ø' => 'o', 'œ' => 'oe',
-            'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u', 'ý' => 'y', 'ÿ' => 'y',
-            'À' => 'a', 'Â' => 'a', 'Ä' => 'a', 'Á' => 'a', 'Ç' => 'c', 'É' => 'e', 'È' => 'e', 'Ê' => 'e',
-            'Ë' => 'e', 'Î' => 'i', 'Ï' => 'i', 'Ô' => 'o', 'Ö' => 'o', 'Œ' => 'oe', 'Ù' => 'u', 'Û' => 'u', 'Ü' => 'u',
-        ]);
-        $text = strtolower(preg_replace('/[^A-Za-z0-9]+/', '-', $text));
-        return trim($text, '-') ?: 'festival';
-    }
-
-    public static function slugExists(string $slug, ?int $exceptId = null): bool
-    {
-        return static::first('SELECT id FROM festivals WHERE slug = ? AND id <> ?', [$slug, $exceptId ?? 0]) !== null;
-    }
-
-    /** Festivals à venir sans aucune offre : à signaler à l'équipe. */
-    public static function withoutOffers(): array
-    {
-        return static::select(
-            'SELECT * FROM (SELECT f.*, ' . self::COUNTS . ' FROM festivals f) AS f
-             WHERE rides_count = 0 OR housings_count = 0 ORDER BY start_date'
-        );
-    }
-
-    public static function stats(): array
-    {
-        return static::first('SELECT
-            (SELECT COUNT(*) FROM festivals) AS festivals,
-            (SELECT COUNT(*) FROM rides)     AS rides,
-            (SELECT COUNT(*) FROM housings)  AS housings,
-            (SELECT COUNT(*) FROM users)     AS members') ?? [];
+        return (int) $this->starts_on->diffInDays($this->ends_on) + 1;
     }
 }
