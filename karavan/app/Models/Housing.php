@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\BookingStatus;
 use App\Enums\HousingType;
+use App\Notifications\ListingCancelled;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -28,6 +30,16 @@ class Housing extends Model
             'price_per_night' => 'decimal:2',
             'amenities' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Annonce supprimée (par son auteur, un admin, ou avec son festival / le compte de son auteur) :
+        // chaque personne ayant une demande en cours reçoit un email d'annulation.
+        static::deleting(function (Housing $housing) {
+            $housing->activeBookings()->with(['guest', 'housing.festival'])->get()
+                ->each(fn ($booking) => $booking->requester()->notify(new ListingCancelled($booking)));
+        });
     }
 
     /* ---------- Relations ---------- */
@@ -70,15 +82,22 @@ class Housing extends Model
         return $user !== null && $user->id === $this->user_id;
     }
 
-    public function isRequestedBy(?User $user): bool
+    /** Demandes en attente ou acceptées. */
+    public function activeBookings(): HasMany
     {
-        return $user !== null && $this->bookings()->where('user_id', $user->id)->exists();
+        return $this->bookings()->whereIn('status', BookingStatus::active());
     }
 
-    /** Plus grand groupe parmi les demandes : la capacité ne peut pas descendre en dessous. */
+    /** Demande (quel que soit son statut) d'un membre sur ce logement. */
+    public function bookingOf(?User $user): ?HousingBooking
+    {
+        return $user ? $this->bookings()->where('user_id', $user->id)->first() : null;
+    }
+
+    /** Plus grand groupe parmi les demandes actives : la capacité ne peut pas descendre en dessous. */
     public function largestGroup(): int
     {
-        return (int) $this->bookings()->max('guests');
+        return (int) $this->activeBookings()->max('guests');
     }
 
     /** Nombre de nuits proposé par défaut : la durée du festival. */

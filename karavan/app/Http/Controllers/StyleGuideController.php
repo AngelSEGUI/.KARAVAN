@@ -24,7 +24,7 @@ class StyleGuideController extends Controller
             'current' => $theme->current(),
             'default' => $theme->default(),
             'canSwitch' => $theme->switcherEnabled(),
-            'festival' => Festival::withOfferCounts()->orderBy('starts_on')->first(),
+            'festival' => Festival::published()->withOfferCounts()->orderBy('starts_on')->first(),
             'ride' => Ride::with(['driver', 'festival'])->withBookedSeats()->first(),
             'housing' => Housing::with('festival')->first(),
             'types' => HousingType::options(),

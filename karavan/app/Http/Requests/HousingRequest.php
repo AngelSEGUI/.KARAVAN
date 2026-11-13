@@ -25,12 +25,12 @@ class HousingRequest extends FormRequest
     public function rules(): array
     {
         $housing = $this->housing();
-        $hasRequests = $housing?->bookings()->exists() ?? false;
+        $hasRequests = $housing?->activeBookings()->exists() ?? false;
         $largestGroup = $housing?->largestGroup() ?? 0;
 
         return [
             'festival_id' => array_filter([
-                'required', 'integer', 'exists:festivals,id',
+                'required', 'integer', Rule::exists('festivals', 'id')->where('is_published', true),
                 $hasRequests ? Rule::in([$housing->festival_id]) : null,
             ]),
             'title' => ['required', 'string', 'min:5', 'max:140'],

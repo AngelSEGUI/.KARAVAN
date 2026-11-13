@@ -25,6 +25,28 @@
             </section>
 
             <div class="stack">
+                <section class="card" id="organisateur">
+                    <h2 class="h4"><x-icon name="ticket" class="icon-sm" />Espace organisateur</h2>
+                    @if ($user->canOrganize())
+                        <p class="muted">Vous pouvez créer et personnaliser les pages de vos festivals.</p>
+                        <a href="{{ route('organizer.index') }}" class="btn btn-primary">Ouvrir l'espace organisateur</a>
+                    @elseif ($user->hasPendingProRequest())
+                        <p class="notice notice-warning">
+                            Demande envoyée le {{ $user->pro_requested_at->translatedFormat('j F Y') }} pour « {{ $user->organization }} ».
+                            L'équipe Karavan vous répond par email.
+                        </p>
+                    @else
+                        <p class="muted">Vous organisez un festival ? Demandez un profil organisateur pour créer sa page : couleurs, photos, affiche et programmation.</p>
+                        <form method="POST" action="{{ route('pro-request.store') }}" class="form" novalidate>
+                            @csrf
+                            <x-field name="organization" label="Nom de la structure" :value="$user->organization" required maxlength="120" placeholder="Ex. Association Marées Hautes" />
+                            <x-field name="organization_website" label="Site web" type="url" :value="$user->organization_website" optional placeholder="https://" />
+                            <x-field name="pro_request_message" label="Votre festival en quelques mots" type="textarea" rows="3" maxlength="1000" optional />
+                            <div class="form-actions"><button type="submit" class="btn btn-primary">Demander un profil organisateur</button></div>
+                        </form>
+                    @endif
+                </section>
+
                 <section class="card">
                     <h2 class="h4"><x-icon name="lock" class="icon-sm" />Mot de passe</h2>
                     <form method="POST" action="{{ route('profile.password') }}" class="form" novalidate>

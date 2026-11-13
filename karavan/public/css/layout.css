@@ -35,6 +35,7 @@ body { padding-bottom: var(--tabbar-h); }   /* place pour la barre d'onglets mob
 
 /* ---------- Grilles ---------- */
 .grid { display: grid; gap: 16px; }
+.grid > *, .stack > * { min-width: 0; }   /* un contenu long ne peut pas élargir la grille */
 .stack { display: grid; gap: 12px; }
 
 /* ---------- En-tête ---------- */

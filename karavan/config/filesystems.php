@@ -30,6 +30,17 @@ return [
 
     'disks' => [
 
+        // Images envoyées par les organisateurs (bannières, affiches, carrousels).
+        // Rangées directement dans public/uploads : aucun lien symbolique à créer.
+        'uploads' => [
+            'driver' => 'local',
+            'root' => public_path('uploads'),
+            'url' => '/uploads',
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),

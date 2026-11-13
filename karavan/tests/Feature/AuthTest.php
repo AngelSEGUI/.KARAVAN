@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -12,17 +14,21 @@ class AuthTest extends TestCase
 
     public function test_a_visitor_can_register(): void
     {
+        Notification::fake();
+
         $this->post('/inscription', [
             'name' => 'Élodie Ünal',
             'email' => 'Elodie@Test.FR',
             'city' => 'Nîmes',
             'password' => 'motdepasse',
             'password_confirmation' => 'motdepasse',
-        ])->assertRedirect('/mon-espace');
+        ])->assertRedirect('/email/verification');
 
         $this->assertAuthenticated();
         $user = User::where('email', 'elodie@test.fr')->firstOrFail();
         $this->assertSame('ÉÜ', $user->initials);
+        $this->assertFalse($user->hasVerifiedEmail());
+        Notification::assertSentTo($user, VerifyEmail::class);
         $this->get('/mon-espace')->assertOk()->assertSee('Élodie Ünal');
     }
 

@@ -26,7 +26,7 @@
 
             @if ($top = $featured->first())
                 <a href="{{ route('festivals.show', $top) }}" class="hero-poster">
-                    <x-cover :name="$top->name" :hue="$top->hue" size="hero" />
+                    <x-cover :name="$top->name" :hue="$top->hue" :image="$top->bannerUrl()" size="hero" />
                     <div class="hero-poster-info">
                         <span class="badge">À la une</span>
                         <strong>{{ $top->name }}</strong>

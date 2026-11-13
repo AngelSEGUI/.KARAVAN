@@ -1,7 +1,7 @@
 <x-layouts.admin title="Tableau de bord">
     <header class="admin-head">
         <div><span class="eyebrow">Administration</span><h1>Tableau de bord</h1></div>
-        <a href="{{ route('admin.festivals.create') }}" class="btn btn-primary"><x-icon name="plus" />Nouveau festival</a>
+        <a href="{{ route('organizer.festivals.create') }}" class="btn btn-primary"><x-icon name="plus" />Nouveau festival</a>
     </header>
 
     <div class="kpis">

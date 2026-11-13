@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Ride;
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -22,16 +24,30 @@ class ProfileTest extends TestCase
 
     public function test_a_member_updates_the_profile(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['email' => 'moi@test.fr']);
 
         $this->actingAs($user)->put('/mon-espace/profil', [
-            'name' => 'Léa Durand', 'email' => 'NOUVEL@test.fr', 'city' => 'Lyon', 'bio' => 'Électro et van aménagé.',
+            'name' => 'Léa Durand', 'email' => 'moi@test.fr', 'city' => 'Lyon', 'bio' => 'Électro et van aménagé.',
         ])->assertRedirect('/mon-espace/profil')->assertSessionHas('success');
 
         $user->refresh();
         $this->assertSame('Léa Durand', $user->name);
-        $this->assertSame('nouvel@test.fr', $user->email);
         $this->assertSame('Électro et van aménagé.', $user->bio);
+        $this->assertTrue($user->hasVerifiedEmail());
+    }
+
+    public function test_changing_email_requires_a_new_verification(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->put('/mon-espace/profil', ['name' => $user->name, 'email' => 'NOUVEL@test.fr'])
+            ->assertRedirect('/email/verification');
+
+        $user->refresh();
+        $this->assertSame('nouvel@test.fr', $user->email);
+        $this->assertFalse($user->hasVerifiedEmail());
+        Notification::assertSentTo($user, VerifyEmail::class);
     }
 
     public function test_email_must_stay_unique_but_can_be_kept(): void

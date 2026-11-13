@@ -1,7 +1,7 @@
 <x-layouts.admin title="Festivals">
     <header class="admin-head">
         <div><span class="eyebrow">Catalogue</span><h1>Festivals <span class="head-count">{{ $festivals->total() }}</span></h1></div>
-        <a href="{{ route('admin.festivals.create') }}" class="btn btn-primary"><x-icon name="plus" />Nouveau festival</a>
+        <a href="{{ route('organizer.festivals.create') }}" class="btn btn-primary"><x-icon name="plus" />Nouveau festival</a>
     </header>
 
     <form class="toolbar" method="GET" action="{{ route('admin.festivals.index') }}" data-autosubmit>
@@ -24,8 +24,9 @@
                         <div class="cell-main">
                             <span class="swatch" style="--h: {{ $festival->hue }}"></span>
                             <div>
-                                <a href="{{ route('admin.festivals.edit', $festival->id) }}" class="cell-title">{{ $festival->name }}</a>
-                                <small class="muted">{{ $festival->city }} · {{ $festival->region }}</small>
+                                <a href="{{ route('organizer.festivals.edit', $festival->id) }}" class="cell-title">{{ $festival->name }}</a>
+                                <small class="muted">{{ $festival->city }} · {{ $festival->organizer?->organization ?? $festival->organizer?->name ?? 'Équipe Karavan' }}</small>
+                                @unless ($festival->is_published)<span class="pill pill-warn">Brouillon</span>@endunless
                             </div>
                         </div>
                     </td>
@@ -49,7 +50,7 @@
                     </td>
                     <td class="col-actions">
                         <a href="{{ route('festivals.show', $festival) }}" class="icon-btn" title="Voir sur le site"><x-icon name="external" /></a>
-                        <a href="{{ route('admin.festivals.edit', $festival->id) }}" class="icon-btn" title="Modifier"><x-icon name="edit" /></a>
+                        <a href="{{ route('organizer.festivals.edit', $festival->id) }}" class="icon-btn" title="Modifier"><x-icon name="edit" /></a>
                         <x-delete-form :action="route('admin.festivals.destroy', $festival->id)"
                             :confirm="'Supprimer « ' . $festival->name . ' » ? Ses ' . ($festival->rides_count + $festival->housings_count) . ' offres et leurs réservations seront aussi supprimées.'" />
                     </td>

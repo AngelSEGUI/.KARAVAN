@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\BookingStatus;
 use App\Models\Housing;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
@@ -20,12 +21,16 @@ class HousingPolicy
         return $this->update($user, $housing);
     }
 
-    /** Demander un séjour : pas chez soi, et une seule demande par logement. */
+    /** Demander un séjour : pas chez soi, une seule demande active, pas de nouvelle demande après un refus. */
     public function book(User $user, Housing $housing): Response
     {
+        $existing = $housing->bookingOf($user);
+
         return match (true) {
             $housing->isHostedBy($user) => Response::deny('Vous ne pouvez pas réserver votre propre logement.'),
-            $housing->isRequestedBy($user) => Response::deny('Vous avez déjà envoyé une demande pour ce logement.'),
+            $existing?->status === BookingStatus::Pending => Response::deny("Votre demande est en attente de réponse de l'hôte."),
+            $existing?->status === BookingStatus::Accepted => Response::deny("{$housing->host->first_name} a accepté votre séjour."),
+            $existing?->status === BookingStatus::Declined => Response::deny("{$housing->host->first_name} a refusé votre demande pour ce logement."),
             default => Response::allow(),
         };
     }

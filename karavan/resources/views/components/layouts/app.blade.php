@@ -13,6 +13,7 @@
 @php
     $theme = active_theme();
     $user = auth()->user();
+    $pendingRequests = $user?->pendingRequestsCount() ?? 0;
     $tab = fn (string $pattern) => request()->routeIs($pattern) ? 'is-active' : '';
 @endphp
 <!doctype html>
@@ -57,11 +58,17 @@
                     </div>
                 </details>
                 <details class="dropdown">
-                    <summary class="avatar">{{ $user->initials }}</summary>
+                    <summary class="avatar avatar-notify" @if ($pendingRequests) data-count="{{ $pendingRequests }}" aria-label="{{ plural($pendingRequests, 'demande') }} à traiter" @endif>{{ $user->initials }}</summary>
                     <div class="dropdown-menu dropdown-right">
                         <span class="dropdown-label">{{ $user->name }}</span>
                         <a href="{{ route('account') }}"><x-icon name="user" />Mon espace</a>
+                        @if ($pendingRequests)
+                            <a href="{{ route('account') }}#demandes"><x-icon name="inbox" />Demandes à traiter <span class="count">{{ $pendingRequests }}</span></a>
+                        @endif
                         <a href="{{ route('profile.edit') }}"><x-icon name="edit" />Modifier mon profil</a>
+                        @if ($user->canOrganize())
+                            <a href="{{ route('organizer.index') }}"><x-icon name="ticket" />Espace organisateur</a>
+                        @endif
                         @if ($user->isAdmin())
                             <a href="{{ route('admin.dashboard') }}"><x-icon name="shield" />Administration</a>
                         @endif
@@ -105,6 +112,7 @@
             <a href="{{ route('rides.create') }}">Proposer un trajet</a>
             <a href="{{ route('housings.create') }}">Proposer un logement</a>
             @guest<a href="{{ route('register') }}">Rejoindre la communauté</a>@endguest
+            <a href="{{ auth()->user()?->canOrganize() ? route('organizer.index') : (auth()->check() ? route('profile.edit') . '#organisateur' : route('register')) }}">Vous organisez un festival ?</a>
             @if (app(\App\Support\Theme::class)->switcherEnabled())
                 <a href="{{ route('styleguide') }}">Guide de styles</a>
             @endif

@@ -7,6 +7,7 @@
     $left = $ride->seatsLeft();
     $isDriver = $ride->isDrivenBy($user);
     $canManage = $user?->can('update', $ride);
+    $myBooking = $user ? $ride->bookings->firstWhere('user_id', $user->id) : null;
 @endphp
 <x-layouts.app :title="$ride->departure_city . ' → ' . $ride->festival->name">
     <div class="container">
@@ -56,18 +57,26 @@
                     @if ($ride->notes)<blockquote>{!! nl2br(e($ride->notes)) !!}</blockquote>@endif
                 </section>
 
-                @if ($ride->bookings->isNotEmpty())
+                @php $onBoard = $ride->bookings->filter->isAccepted(); @endphp
+                @if ($onBoard->isNotEmpty())
                     <section class="card">
-                        <h2 class="h4">À bord ({{ $ride->bookedSeats() }})</h2>
+                        <h2 class="h4">À bord ({{ $onBoard->sum('seats') }})</h2>
                         <ul class="people-list">
-                            @foreach ($ride->bookings as $booking)
-                                <li>
-                                    <x-avatar :user="$booking->passenger" size="sm" />
-                                    {{ $booking->passenger->name }} <span class="muted">· {{ plural($booking->seats, 'place') }}</span>
-                                    @if ($canManage && $booking->message)<small class="muted">« {{ $booking->message }} »</small>@endif
-                                </li>
+                            @foreach ($onBoard as $booking)
+                                <li><x-avatar :user="$booking->passenger" size="sm" />{{ $booking->passenger->name }} <span class="muted">· {{ plural($booking->seats, 'place') }}</span></li>
                             @endforeach
                         </ul>
+                    </section>
+                @endif
+
+                @if ($canManage && $ride->bookings->isNotEmpty())
+                    <section class="card" id="demandes">
+                        <h2 class="h4">Demandes reçues ({{ $ride->bookings->count() }})</h2>
+                        <div class="stack">
+                            @foreach ($ride->bookings->sortBy(fn ($b) => [$b->isPending() ? 0 : 1, $b->created_at]) as $booking)
+                                <x-booking-request :booking="$booking" />
+                            @endforeach
+                        </div>
                     </section>
                 @endif
             </div>
@@ -79,19 +88,39 @@
                 </p>
 
                 @if ($canManage)
-                    @if ($isDriver)<p class="notice">C'est votre trajet. Retrouvez vos passagers ci-contre et dans <a href="{{ route('account') }}">votre espace</a>.</p>@endif
+                    @if ($isDriver)
+                        @php $pending = $ride->bookings->filter->isPending()->count(); @endphp
+                        <p @class(['notice', 'notice-warning' => $pending])>
+                            C'est votre trajet.
+                            {{ $pending ? plural($pending, 'demande attend', 'demandes attendent') . ' votre réponse.' : 'Aucune demande en attente.' }}
+                            @if ($pending)<a href="#demandes">Répondre</a>@endif
+                        </p>
+                    @endif
                     <div class="owner-box">
                         <a href="{{ route('rides.edit', $ride) }}" class="btn btn-ghost btn-block"><x-icon name="edit" />Modifier le trajet</a>
                         <x-delete-form :action="route('rides.destroy', $ride)" label="Supprimer le trajet" class="btn btn-danger btn-block"
-                            :confirm="'Supprimer ce trajet ?' . ($ride->hasBookings() ? ' Les ' . $ride->bookedSeats() . ' place(s) réservée(s) seront annulées.' : '')" />
+                            :confirm="'Supprimer ce trajet ?' . ($ride->hasBookings() ? ' Les demandes en cours seront annulées et les passagers prévenus par email.' : '')" />
                     </div>
                 @elseif ($canBook === null)
                     <a href="{{ route('login') }}" class="btn btn-primary btn-block">Se connecter pour réserver</a>
+                @elseif ($myBooking?->isActive() || $myBooking?->status === \App\Enums\BookingStatus::Declined)
+                    {{-- Le membre a déjà une demande : on affiche son statut --}}
+                    <div class="my-booking">
+                        <div class="my-booking-head">Votre demande <x-booking-status :booking="$myBooking" /></div>
+                        <p class="muted small">{{ $myBooking->summary() }} · {{ euros($myBooking->total()) }}</p>
+                        <p class="small">
+                            @if ($myBooking->isPending())
+                                {{ $ride->driver->first_name }} va accepter ou refuser votre demande : vous recevrez un email.
+                            @elseif ($myBooking->isAccepted())
+                                <x-icon name="check" class="icon-sm" />C'est confirmé, bonne route !
+                            @else
+                                {{ $canBook->message() }} <a href="{{ route('rides.index', ['festival' => $ride->festival_id]) }}">Voir d'autres trajets</a>
+                            @endif
+                        </p>
+                        <x-booking-actions :booking="$myBooking" block />
+                    </div>
                 @elseif ($canBook->denied())
-                    <p @class(['notice', 'notice-success' => $ride->isBookedBy($user)])>
-                        @if ($ride->isBookedBy($user))<x-icon name="check" class="icon-sm" />Vous êtes inscrit sur ce trajet.
-                        @else{{ $canBook->message() }} <a href="{{ route('rides.index', ['festival' => $ride->festival_id]) }}">Voir d'autres trajets</a>@endif
-                    </p>
+                    <p class="notice">{{ $canBook->message() }} <a href="{{ route('rides.index', ['festival' => $ride->festival_id]) }}">Voir d'autres trajets</a></p>
                 @else
                     <form method="POST" action="{{ route('rides.book', $ride) }}" class="form" data-price="{{ $ride->price }}">
                         @csrf
@@ -100,7 +129,8 @@
                         <x-field name="message" type="textarea" rows="3" maxlength="500" optional
                                  :label="'Un mot pour ' . $ride->driver->first_name" placeholder="Bagages, musique, horaires…" />
                         <div class="total">Total <strong data-total>{{ euros($ride->price) }}</strong></div>
-                        <button type="submit" class="btn btn-primary btn-block">Réserver</button>
+                        <button type="submit" class="btn btn-primary btn-block">Envoyer ma demande</button>
+                        <p class="muted small center" style="margin: 0">{{ $ride->driver->first_name }} acceptera ou refusera votre demande. Vous serez prévenu par email.</p>
                     </form>
                 @endif
             </aside>

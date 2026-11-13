@@ -2,7 +2,7 @@
 @props(['festival'])
 <article class="festival-card">
     <a href="{{ route('festivals.show', $festival) }}" class="card-link" aria-label="{{ $festival->name }}"></a>
-    <x-cover :name="$festival->name" :hue="$festival->hue" />
+    <x-cover :name="$festival->name" :hue="$festival->hue" :image="$festival->bannerUrl()" />
     <div class="festival-card-body">
         <div class="date-chip">
             <strong>{{ $festival->starts_on->day }}</strong>

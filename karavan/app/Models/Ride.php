@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\BookingStatus;
+use App\Notifications\ListingCancelled;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,6 +34,16 @@ class Ride extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // Annonce supprimée (par son auteur, un admin, ou avec son festival / le compte de son auteur) :
+        // chaque personne ayant une demande en cours reçoit un email d'annulation.
+        static::deleting(function (Ride $ride) {
+            $ride->activeBookings()->with(['passenger', 'ride.festival'])->get()
+                ->each(fn ($booking) => $booking->requester()->notify(new ListingCancelled($booking)));
+        });
+    }
+
     /* ---------- Relations ---------- */
 
     public function driver(): BelongsTo
@@ -51,10 +63,16 @@ class Ride extends Model
 
     /* ---------- Requêtes ---------- */
 
-    /** Ajoute booked_seats (somme des places réservées). */
+    /** Demandes en attente ou acceptées : elles occupent des places. */
+    public function activeBookings(): HasMany
+    {
+        return $this->bookings()->whereIn('status', BookingStatus::active());
+    }
+
+    /** Ajoute booked_seats (places occupées par les demandes actives). */
     public function scopeWithBookedSeats(Builder $query): void
     {
-        $query->withSum('bookings as booked_seats', 'seats');
+        $query->withSum('activeBookings as booked_seats', 'seats');
     }
 
     /** @param array{festival?: ?string, from?: ?string, seats?: ?string} $filters */
@@ -64,7 +82,7 @@ class Ride extends Model
             ->when($filters['festival'] ?? null, fn (Builder $q, $id) => $q->where('festival_id', $id))
             ->when($filters['from'] ?? null, fn (Builder $q, $city) => $q->where('departure_city', 'like', '%' . $city . '%'))
             ->when($filters['seats'] ?? null, fn (Builder $q, $n) => $q->whereRaw(
-                'seats - coalesce((select sum(seats) from ride_bookings where ride_bookings.ride_id = rides.id), 0) >= ?',
+                "seats - coalesce((select sum(seats) from ride_bookings where ride_bookings.ride_id = rides.id and status in ('pending', 'accepted')), 0) >= ?",
                 [(int) $n]
             ))
             ->orderBy('departs_at');
@@ -74,7 +92,7 @@ class Ride extends Model
 
     public function bookedSeats(): int
     {
-        return (int) ($this->booked_seats ?? $this->bookings()->sum('seats'));
+        return (int) ($this->booked_seats ?? $this->activeBookings()->sum('seats'));
     }
 
     public function seatsLeft(): int
@@ -92,9 +110,15 @@ class Ride extends Model
         return $user !== null && $user->id === $this->user_id;
     }
 
-    public function isBookedBy(?User $user): bool
+    /** Réservation (quel que soit son statut) d'un membre sur ce trajet. */
+    public function bookingOf(?User $user): ?RideBooking
     {
-        return $user !== null && $this->bookings()->where('user_id', $user->id)->exists();
+        return $user ? $this->bookings()->where('user_id', $user->id)->first() : null;
+    }
+
+    public function pendingCount(): int
+    {
+        return $this->bookings()->pending()->count();
     }
 
     public function hasBookings(): bool

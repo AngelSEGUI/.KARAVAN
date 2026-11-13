@@ -43,6 +43,8 @@ Chargés dans cet ordre par `resources/views/components/layouts/app.blade.php` :
 | `css/components.css` | Boutons, étiquettes, cartes, formulaires, messages, pagination… (sommaire numéroté en tête de fichier) | Pour changer la forme d'un composant |
 | `css/pages.css` | Mises en page propres à une page (accueil, fiche festival, profil…) | Pour une page en particulier |
 | `css/admin.css` | Espace d'administration (chargé seulement dans `/admin`) | Pour l'admin |
+| `css/organizer.css` | Espace organisateur : éditeur de festival (chargé seulement dans `/organisateur`) | Pour l'éditeur |
+| `css/festival-page.css` | Page d'un festival : bandeau, carrousel, calendrier, affiche | Pour la page festival |
 
 **Règle d'or** : aucune couleur ni police n'est écrite en dur dans ces fichiers, tout passe par `var(--…)`. Si vous ajoutez du CSS, gardez cette règle pour que les thèmes continuent de fonctionner.
 
@@ -161,6 +163,7 @@ Les thèmes changent l'ambiance. Pour changer **la structure** d'un élément, m
 | Carte logement | `components/housing-card.blade.php` | `components.css` §7 |
 | Champs de formulaire | `components/field.blade.php` | `components.css` §8 |
 | Affiche générée | `components/cover.blade.php` | `components.css` §4 |
+| Demande de réservation, statut, boutons Accepter/Refuser/Annuler | `components/booking-request.blade.php`, `booking-status`, `booking-actions` | `components.css` §15 |
 | Icônes | `partials/icons.blade.php` (sprite SVG) | `base.css` |
 | Pages | `resources/views/{home, festivals, rides, housings, account, auth}/…` | `pages.css` |
 
@@ -170,11 +173,25 @@ Les composants sont utilisés partout sous la forme `<x-ride-card :ride="$ride" 
 
 ---
 
-## 6. Checklist avant de valider un thème
+## 6. Les pages de festival personnalisées
+
+Sur la page d'un festival, **ce sont les choix de l'organisateur qui priment** sur le thème du site. `App\Support\FestivalDesign::cssVariables()` écrit, dans l'attribut `style` du conteneur `.festival-page`, les mêmes variables que les thèmes (`--color-primary`, `--color-bg`, `--color-text`, `--font-display`, `--font-body`…). Tout ce qui est à l'intérieur — boutons, onglets, cartes de trajets, calendrier — prend donc ses couleurs et ses polices sans CSS supplémentaire. L'en-tête et le pied de page gardent le thème Karavan.
+
+- **Ajouter une palette** : une ligne dans `config/festival_design.php` (`primary`, `secondary`, `mode` = `light` ou `dark`). Elle apparaît dans l'éditeur.
+- **Ajouter une police** : son nom exact sur Google Fonts + la police de secours (`serif` ou `sans-serif`), dans `fonts.heading` ou `fonts.body`.
+- **Fonds clair et sombre** : couleurs de fond, de texte et de bordure de chaque mode dans `modes`.
+- **Lisibilité** : le texte posé sur la couleur principale (boutons, créneau survolé) est calculé automatiquement, noir ou blanc selon la luminance (`FestivalDesign::readableOn()`).
+- **Calendrier** : `--ppm` dans `festival-page.css` règle la hauteur d'une minute (1.6px = 96px par heure), `minmax(150px, 1fr)` la largeur minimale d'une scène.
+
+Pour vérifier un rendu : connectez-vous avec `pro@karavan.test`, changez la palette dans l'onglet *Apparence*, puis « Voir la page ».
+
+---
+
+## 7. Checklist avant de valider un thème
 
 - [ ] `/guide-styles` : tous les textes sont lisibles, en particulier sur les blocs foncés (avatars, pastilles de date, badges).
 - [ ] Accueil, fiche festival, détail d'un trajet et d'un logement.
 - [ ] Un formulaire avec une erreur (envoyez-le vide) : les messages rouges sont lisibles.
 - [ ] Mobile : outils de développement (`F12`) → mode téléphone (`Ctrl + Shift + M`).
-- [ ] L'administration (`/admin`), qui utilise les mêmes variables.
+- [ ] L'administration (`/admin`) et l'espace organisateur (`/organisateur`), qui utilisent les mêmes variables.
 - [ ] `php artisan test` : les tests vérifient les fonctionnalités, ils doivent toujours passer.

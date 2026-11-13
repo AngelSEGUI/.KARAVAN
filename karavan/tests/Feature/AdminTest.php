@@ -33,41 +33,25 @@ class AdminTest extends TestCase
         Housing::factory()->create();
 
         $this->actingAs($this->admin);
-        foreach (['/admin', '/admin/festivals', '/admin/festivals/nouveau', '/admin/covoiturages', '/admin/logements', '/admin/membres', '/admin/membres?filtre=admin&q=a'] as $url) {
+        foreach (['/admin', '/admin/festivals', '/admin/covoiturages', '/admin/logements', '/admin/membres', '/admin/membres?filtre=admin&q=a', '/admin/membres?filtre=demandes-pro'] as $url) {
             $this->get($url)->assertOk();
         }
-        $this->get(route('admin.festivals.edit', Festival::first()->id))->assertOk();
+        // La création et l'édition des festivals passent par l'espace organisateur, ouvert aux admins
+        $this->get(route('organizer.festivals.create'))->assertOk();
+        $this->get(route('organizer.festivals.edit', Festival::first()->id))->assertOk();
     }
 
-    public function test_admin_creates_and_updates_a_festival(): void
+    public function test_admin_creates_a_festival_without_owner(): void
     {
-        $this->actingAs($this->admin)->post('/admin/festivals', [
+        $this->actingAs($this->admin)->post(route('organizer.festivals.store'), [
             'name' => 'Été Électrique à Nîmes', 'city' => 'Nîmes', 'region' => 'Occitanie',
             'starts_on' => '2027-07-01', 'ends_on' => '2027-07-03', 'genres' => 'Électro, Pop', 'lineup' => 'A, B',
-            'hue' => 200, 'is_featured' => '1',
         ])->assertRedirect();
 
         $festival = Festival::where('slug', 'ete-electrique-a-nimes')->firstOrFail();
         $this->assertSame(['Électro', 'Pop'], $festival->genres);
-        $this->assertTrue($festival->is_featured);
-        $this->get('/festivals/ete-electrique-a-nimes')->assertOk();
-
-        $this->put(route('admin.festivals.update', $festival->id), [
-            'name' => 'Été Électrique', 'slug' => 'ete-electrique', 'city' => 'Nîmes', 'region' => 'Occitanie',
-            'starts_on' => '2027-07-01', 'ends_on' => '2027-07-03', 'genres' => 'Électro', 'hue' => 10,
-        ])->assertSessionHasNoErrors();
-        $this->assertSame('ete-electrique', $festival->fresh()->slug);
-        $this->assertFalse($festival->fresh()->is_featured);
-    }
-
-    public function test_festival_validation(): void
-    {
-        Festival::factory()->create(['slug' => 'pris']);
-
-        $this->actingAs($this->admin)->post('/admin/festivals', [
-            'name' => 'X', 'slug' => 'pris', 'city' => '', 'region' => 'R',
-            'starts_on' => '2027-07-05', 'ends_on' => '2027-07-01', 'genres' => '', 'hue' => 500,
-        ])->assertSessionHasErrors(['slug', 'city', 'ends_on', 'genres', 'hue']);
+        $this->assertNull($festival->user_id);
+        $this->assertFalse($festival->is_published);
     }
 
     public function test_toggle_featured_and_delete_festival_cascades(): void
@@ -92,16 +76,19 @@ class AdminTest extends TestCase
         $this->patch(route('admin.users.suspension', $member));
         $this->assertFalse($member->fresh()->isSuspended());
 
-        $this->patch(route('admin.users.role', $member));
+        $this->patch(route('admin.users.role', $member), ['role' => 'admin']);
         $this->assertSame(UserRole::Admin, $member->fresh()->role);
-        $this->patch(route('admin.users.role', $member));
+        $this->patch(route('admin.users.role', $member), ['role' => 'pro']);
+        $this->assertSame(UserRole::Pro, $member->fresh()->role);
+        $this->patch(route('admin.users.role', $member), ['role' => 'nimporte'])->assertSessionHasErrors('role');
+        $this->patch(route('admin.users.role', $member), ['role' => 'member']);
         $this->assertSame(UserRole::Member, $member->fresh()->role);
     }
 
     public function test_admin_cannot_act_on_own_account(): void
     {
         $this->actingAs($this->admin);
-        $this->patch(route('admin.users.role', $this->admin))->assertSessionHas('error');
+        $this->patch(route('admin.users.role', $this->admin), ['role' => 'member'])->assertSessionHas('error');
         $this->patch(route('admin.users.suspension', $this->admin))->assertSessionHas('error');
         $this->delete(route('admin.users.destroy', $this->admin))->assertSessionHas('error');
         $this->assertTrue($this->admin->fresh()->isAdmin());

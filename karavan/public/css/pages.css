@@ -167,8 +167,9 @@
 
 /* ---------- Mon espace & profil ---------- */
 .account { display: grid; gap: 40px; }
+.account > * { min-width: 0; }
 .list-rows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.list-rows li { --h: 20; }
+.list-rows li { --h: 20; min-width: 0; }
 .list-rows a {
     display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px;
     background: var(--color-surface); border: var(--border-width) solid var(--color-line); text-decoration: none;
@@ -183,6 +184,17 @@
 .row-main small, .row-side small { color: var(--color-muted); }
 .row-side { font-size: 0.9rem; font-weight: 600; text-align: right; }
 .row-side small { display: block; font-weight: 400; }
+
+.list-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    background: var(--color-surface); border: var(--border-width) solid var(--color-line); border-radius: 14px;
+}
+.list-rows .list-row a.list-row-link { flex: 1 1 260px; min-width: 0; border: 0; background: none; }
+.row-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 16px 14px; }
+.list-rows li.is-closed .list-row { opacity: 0.6; }
+.verify-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; }
+.verify-banner span { flex: 1 1 240px; }
+@media (min-width: 640px) { .row-status { padding: 0 16px 0 0; } }
 
 .profile-layout { display: grid; gap: 20px; }
 .profile-nav { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -114,6 +114,11 @@ a.cell-title:hover { color: var(--color-primary-hover); }
 .star-toggle.is-on { color: var(--color-highlight); opacity: 1; }
 .star-toggle.is-on .icon { fill: currentColor; }
 
+.role-form select { width: auto; min-height: 36px; padding: 4px 32px 4px 10px; font-size: 0.86rem; }
+.pro-request { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; white-space: normal; }
+.pro-request small { flex: 1 1 100%; text-align: left; }
+.segmented .count { margin-left: 4px; }
+
 /* ---------- Formulaire festival ---------- */
 .admin-form { display: grid; gap: 16px; }
 .admin-form > *, .admin-form-main > * { min-width: 0; }

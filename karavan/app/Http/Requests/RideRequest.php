@@ -28,7 +28,7 @@ class RideRequest extends FormRequest
 
         return [
             'festival_id' => array_filter([
-                'required', 'integer', 'exists:festivals,id',
+                'required', 'integer', Rule::exists('festivals', 'id')->where('is_published', true),
                 $booked > 0 ? Rule::in([$ride->festival_id]) : null,
             ]),
             'departure_city' => ['required', 'string', 'max:80'],

@@ -7,12 +7,16 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
-/** Création / modification d'un festival par un administrateur. */
+/** Onglet « Informations » d'un festival (création et modification), par un organisateur ou un admin. */
 class FestivalRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) $this->user()?->isAdmin();
+        $festival = $this->route('festival');
+
+        return $festival instanceof Festival
+            ? $this->user()->can('update', $festival)
+            : $this->user()->can('create', Festival::class);
     }
 
     /** L'adresse (slug) est générée depuis le nom si elle est laissée vide. */
@@ -20,7 +24,6 @@ class FestivalRequest extends FormRequest
     {
         $this->merge([
             'slug' => Str::slug((string) ($this->input('slug') ?: $this->input('name'))),
-            'is_featured' => $this->boolean('is_featured'),
         ]);
     }
 
@@ -42,8 +45,8 @@ class FestivalRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:5000'],
             'attendance' => ['nullable', 'integer', 'min:0'],
             'price_from' => ['nullable', 'numeric', 'min:0'],
-            'hue' => ['required', 'integer', 'between:0,359'],
-            'is_featured' => ['boolean'],
+            'website' => ['nullable', 'url', 'max:200'],
+            'ticket_url' => ['nullable', 'url', 'max:200'],
         ];
     }
 

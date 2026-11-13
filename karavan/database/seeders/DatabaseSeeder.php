@@ -57,23 +57,32 @@ class DatabaseSeeder extends Seeder
         }
 
         foreach ($data['ride_bookings'] as $row) {
-            $rides[$row['ride'] - 1]->bookings()->create([
+            $booking = $rides[$row['ride'] - 1]->bookings()->make([
                 'user_id' => $users[$row['passenger']]->id,
                 'seats' => $row['seats'],
                 'message' => $row['message'],
             ]);
+            $booking->status = $row['status'];
+            $booking->responded_at = $row['status'] === 'pending' ? null : now();
+            $booking->save();
         }
 
         foreach ($data['housing_bookings'] as $row) {
-            $housings[$row['housing'] - 1]->bookings()->create([
+            $booking = $housings[$row['housing'] - 1]->bookings()->make([
                 'user_id' => $users[$row['guest']]->id,
                 'guests' => $row['guests'],
                 'nights' => $row['nights'],
                 'message' => $row['message'],
             ]);
+            $booking->status = $row['status'];
+            $booking->responded_at = $row['status'] === 'pending' ? null : now();
+            $booking->save();
         }
 
+        // Espace organisateur : compte pro et page de festival personnalisée
+        $this->call(OrganizerDemoSeeder::class);
+
         $this->command?->info('Données de démo chargées. Mot de passe de tous les comptes : ' . self::DEMO_PASSWORD);
-        $this->command?->info('Administrateur : admin@karavan.test');
+        $this->command?->info('Administrateur : admin@karavan.test — Organisateur : pro@karavan.test');
     }
 }

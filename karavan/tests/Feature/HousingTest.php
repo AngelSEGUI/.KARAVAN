@@ -6,6 +6,8 @@ use App\Enums\HousingType;
 use App\Models\Festival;
 use App\Models\Housing;
 use App\Models\User;
+use App\Notifications\BookingRequested;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -83,6 +85,7 @@ class HousingTest extends TestCase
 
     public function test_booking_rules(): void
     {
+        Notification::fake();
         $housing = Housing::factory()->create(['capacity' => 2]);
         $guest = User::factory()->create();
 
@@ -93,10 +96,12 @@ class HousingTest extends TestCase
             ->assertSessionHasErrors('guests');
 
         $this->post(route('housings.book', $housing), ['guests' => 2, 'nights' => 3])->assertSessionHas('success');
+        Notification::assertSentTo($housing->host, BookingRequested::class);
+
         $this->post(route('housings.book', $housing), ['guests' => 1, 'nights' => 1])
-            ->assertSessionHas('error', 'Vous avez déjà envoyé une demande pour ce logement.');
+            ->assertSessionHas('error', "Votre demande est en attente de réponse de l'hôte.");
 
         $this->assertDatabaseCount('housing_bookings', 1);
-        $this->get('/mon-espace')->assertSee($housing->title)->assertSee("3\u{00A0}nuits");
+        $this->get('/mon-espace')->assertSee($housing->title)->assertSee("3\u{00A0}nuits")->assertSee('En attente');
     }
 }

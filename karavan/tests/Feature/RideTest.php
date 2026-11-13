@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Models\Festival;
 use App\Models\Ride;
 use App\Models\User;
+use App\Enums\BookingStatus;
+use App\Notifications\BookingRequested;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -99,6 +102,7 @@ class RideTest extends TestCase
 
     public function test_the_driver_deletes_the_ride_and_bookings_go_with_it(): void
     {
+        Notification::fake();
         $ride = Ride::factory()->create();
         $ride->bookings()->create(['user_id' => User::factory()->create()->id, 'seats' => 1]);
 
@@ -119,6 +123,7 @@ class RideTest extends TestCase
 
     public function test_booking_rules(): void
     {
+        Notification::fake();
         $ride = Ride::factory()->create(['seats' => 2]);
         $passenger = User::factory()->create();
 
@@ -129,19 +134,32 @@ class RideTest extends TestCase
         // Pas plus de places que disponibles
         $this->actingAs($passenger)->post(route('rides.book', $ride), ['seats' => 3])->assertSessionHasErrors('seats');
 
-        // Réservation valide
+        // Demande valide : en attente, elle occupe déjà les places, et le conducteur reçoit un email
         $this->post(route('rides.book', $ride), ['seats' => 2, 'message' => 'Merci !'])
             ->assertRedirect(route('rides.show', $ride))->assertSessionHas('success');
+        $this->assertSame(BookingStatus::Pending, $ride->bookings()->first()->status);
         $this->assertSame(0, $ride->fresh()->seatsLeft());
+        Notification::assertSentTo($ride->driver, BookingRequested::class);
 
-        // Pas deux fois
-        $this->post(route('rides.book', $ride), ['seats' => 1])->assertSessionHas('error', 'Vous avez déjà réservé ce trajet.');
+        // Pas deux demandes
+        $this->post(route('rides.book', $ride), ['seats' => 1])
+            ->assertSessionHas('error', 'Votre demande est en attente de réponse du conducteur.');
 
         // Complet pour les autres
         $this->actingAs(User::factory()->create())->post(route('rides.book', $ride), ['seats' => 1])
             ->assertSessionHas('error', 'Ce trajet est complet.');
 
         $this->get(route('rides.show', $ride))->assertSee('Complet');
+    }
+
+    public function test_unverified_members_cannot_publish_or_book(): void
+    {
+        $ride = Ride::factory()->create();
+        $unverified = User::factory()->unverified()->create();
+
+        $this->actingAs($unverified)->get('/covoiturages/nouveau')->assertRedirect('/email/verification');
+        $this->post(route('rides.book', $ride), ['seats' => 1])->assertRedirect('/email/verification');
+        $this->assertDatabaseCount('ride_bookings', 0);
     }
 
     public function test_an_admin_can_moderate_any_ride(): void

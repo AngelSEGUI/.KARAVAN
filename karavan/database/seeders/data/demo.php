@@ -4,6 +4,7 @@
 | Données de démonstration (FICTIVES) chargées par DatabaseSeeder.
 | Les annonces référencent les membres par email et les festivals par slug.
 | Pour les trajets/logements réservés, 'ride' et 'housing' = position dans la liste (à partir de 1).
+| 'status' : pending (en attente) | accepted | declined | cancelled.
 */
 
 return [
@@ -526,12 +527,14 @@ return [
             'passenger' => 'malik@karavan.test',
             'seats' => 1,
             'message' => 'Je ramène les chips !',
+            'status' => 'pending',
         ],
         [
             'ride' => 3,
             'passenger' => 'lea@karavan.test',
             'seats' => 2,
             'message' => null,
+            'status' => 'accepted',
         ],
     ],
     'housing_bookings' => [
@@ -540,7 +543,8 @@ return [
             'guest' => 'thomas@karavan.test',
             'guests' => 2,
             'nights' => 3,
-            'message' => null,
+            'message' => 'On arrive jeudi soir, on sera discrets !',
+            'status' => 'pending',
         ],
     ],
 ];

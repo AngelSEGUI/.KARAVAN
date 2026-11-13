@@ -1,0 +1,188 @@
+/* ==========================================================================
+   Page d'un festival — habillage personnalisé et calendrier de programmation
+   Les couleurs et polices viennent de l'organisateur : FestivalDesign::cssVariables()
+   les pose en style="" sur .festival-page et remplace celles du thème.
+     1. Conteneur et brouillon     .festival-page, .draft-banner
+     2. Bandeau                    .festival-hero, .festival-icon
+     3. Présentation               .festival-about, .festival-section
+     4. Carrousel                  .carousel
+     5. Calendrier                 .timetable, .tt-grid, .tt-slot, .tt-tip, .tt-list
+     6. Affiche                    .festival-poster
+
+   Réglage du calendrier : --ppm = hauteur d'une minute (1.6px → 96px par heure).
+   ========================================================================== */
+
+/* 1. Conteneur ------------------------------------------------------------- */
+.festival-page {
+    padding-bottom: 56px;
+    background: var(--color-bg); color: var(--color-text); font-family: var(--font-body);
+}
+.festival-page h1, .festival-page h2, .festival-page h3, .festival-page h4 { font-family: var(--font-display); }
+.festival-page a:not(.btn):not(.tag):not(.card-link):not(.back-link) { color: var(--color-primary); }
+.festival-page.is-dark .lineup li:not(:first-child) { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-line); }
+
+.festival-layout > * { min-width: 0; }   /* le calendrier défile dans son cadre sans élargir la page */
+
+.draft-banner { padding: 10px 0; background: var(--color-warning-bg); color: var(--color-warning); font-size: .92rem; }
+.draft-banner .container { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.draft-banner a { margin-left: auto; font-weight: 700; color: inherit !important; }
+
+.section-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.section-head h2 { margin: 0; }
+.section-head p { margin: 4px 0 0; }
+
+/* 2. Bandeau -------------------------------------------------------------- */
+.festival-hero.has-banner::after { background: linear-gradient(rgba(0, 0, 0, .1) 20%, rgba(0, 0, 0, .68)); }
+.festival-hero h1 { overflow-wrap: anywhere; }
+.festival-title { display: flex; align-items: flex-end; gap: 18px; margin-top: 24px; }
+.festival-title > div { min-width: 0; }
+.festival-icon {
+    flex: none; width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius);
+    border: 3px solid rgba(255, 255, 255, .85); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, .6); background: #fff;
+}
+@media (min-width: 760px) { .festival-icon { width: 104px; height: 104px; } }
+@media (min-width: 900px) {
+    /* la colonne d'infos remonte de 48px sur le bandeau : on lui laisse la place */
+    .festival-page .festival-hero-inner { padding-bottom: 84px; }
+}
+
+/* 3. Présentation --------------------------------------------------------- */
+.festival-intro { font-size: 1.08rem; }
+.festival-section { margin-top: 20px; }
+.festival-section h3 { margin: 0 0 6px; }
+.festival-section p { margin: 0; color: var(--color-text-soft); }
+
+/* 4. Carrousel (scroll-snap : fonctionne au doigt, à la molette et au clavier) */
+.carousel-nav { display: flex; gap: 6px; }
+.carousel-nav .icon-btn { border-color: var(--color-line); background: var(--color-surface); }
+.carousel {
+    display: grid; grid-auto-flow: column; grid-auto-columns: 86%; gap: 12px;
+    margin: 0; padding: 0 0 8px; list-style: none;
+    overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+}
+@media (min-width: 760px) { .carousel { grid-auto-columns: 62%; } }
+.carousel li { scroll-snap-align: start; }
+.carousel figure { position: relative; margin: 0; overflow: hidden; border-radius: var(--radius); aspect-ratio: 3 / 2; background: var(--color-bg-alt); }
+.carousel img { width: 100%; height: 100%; object-fit: cover; }
+.carousel figcaption {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 28px 16px 12px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, .7)); color: #fff; font-size: .9rem;
+}
+.carousel:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 4px; }
+
+/* 5. Calendrier ------------------------------------------------------------ */
+.tt-view button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 0; border-radius: 9px; background: none; color: var(--color-muted); font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer; }
+.tt-view button.is-active { background: var(--color-primary); color: var(--color-on-primary); }
+.tt-view .icon { width: 16px; height: 16px; }
+.segmented { display: inline-flex; padding: 4px; border: 1.5px solid var(--color-line); border-radius: 12px; background: var(--color-surface); }
+
+.tt-help-touch { display: none; }
+@media (hover: none) { .tt-help-hover { display: none; } .tt-help-touch { display: inline; } }
+
+.tt-days { display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+.tt-days button {
+    flex: none; padding: 9px 16px; border-radius: var(--radius-button); cursor: pointer;
+    border: 1.5px solid var(--color-line); background: var(--color-surface); color: var(--color-text);
+    font: inherit; font-weight: 600; font-size: .92rem;
+}
+.tt-days button[aria-selected="true"] { background: var(--color-text); border-color: var(--color-text); color: var(--color-bg); }
+.tt-day-short { display: none; }
+@media (max-width: 600px) { .tt-day-long { display: none; } .tt-day-short { display: inline; } }
+
+.timetable { --ppm: 1.6px; --hour: calc(var(--ppm) * 60); }
+.tt-scroll {
+    overflow-x: auto; border: var(--border-width) solid var(--color-line); border-radius: var(--radius);
+    background: var(--color-surface); overscroll-behavior-x: contain;
+}
+.tt-scroll:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 2px; }
+.tt-grid {
+    display: grid; min-width: 100%;
+    grid-template-columns: 54px repeat(var(--stages), minmax(150px, 1fr));
+    grid-template-rows: auto calc(var(--minutes) * var(--ppm) + 16px);
+}
+.tt-corner, .tt-stage {
+    position: sticky; top: 0; z-index: 2; padding: 12px 10px;
+    background: var(--color-surface); border-bottom: var(--border-width) solid var(--color-line);
+}
+.tt-corner { left: 0; z-index: 3; }
+.tt-stage {
+    font: 700 .92rem var(--font-display); text-align: center; overflow-wrap: anywhere;
+    border-left: var(--border-width) solid var(--color-line);
+}
+.tt-hours { position: sticky; left: 0; z-index: 1; background: var(--color-surface); }
+.tt-hours span {
+    position: absolute; top: calc(var(--at) * var(--ppm) + 8px); right: 8px; transform: translateY(-50%);
+    font-size: .75rem; font-weight: 600; color: var(--color-muted); font-variant-numeric: tabular-nums;
+}
+.tt-col {
+    position: relative; margin-top: 8px; border-left: var(--border-width) solid var(--color-line);
+    /* une ligne par heure */
+    background-image: linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+    background-size: 100% var(--hour);
+}
+
+.tt-slot {
+    position: absolute; left: 5px; right: 5px;
+    top: calc(var(--start) * var(--ppm) + 1px); height: calc(var(--len) * var(--ppm) - 3px);
+    display: flex; flex-direction: column; justify-content: flex-start; gap: 2px; overflow: hidden;
+    padding: 6px 9px; border: 0; border-left: 4px solid var(--color-primary); border-radius: 8px;
+    background: color-mix(in srgb, var(--color-primary) 15%, var(--color-surface));
+    color: var(--color-text); font: inherit; text-align: left; cursor: pointer;
+    transition: background var(--transition), color var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+.tt-slot strong { font-size: .88rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tt-slot span { font-size: .76rem; color: var(--color-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tt-slot.is-short { flex-direction: row; align-items: center; padding-block: 2px; }
+.tt-slot.is-short strong { -webkit-line-clamp: 1; white-space: nowrap; }
+.tt-slot.is-short span { display: none; }
+.tt-slot:hover, .tt-slot:focus-visible, .tt-slot.is-active {
+    z-index: 2; background: var(--color-primary); color: var(--color-on-primary);
+    box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--color-primary) 80%, transparent); outline: none;
+}
+.tt-slot:hover span, .tt-slot:focus-visible span, .tt-slot.is-active span { color: inherit; opacity: .85; }
+.tt-slot:focus-visible { box-shadow: 0 0 0 3px var(--color-surface), 0 0 0 5px var(--color-text); }
+
+/* Infobulle : une seule pour toute la page, placée par festival.js près du créneau */
+.tt-tip {
+    position: fixed; z-index: 60; width: max-content; max-width: min(300px, calc(100vw - 24px));
+    padding: 14px 16px; border-radius: 14px; pointer-events: none;
+    background: var(--color-text); color: var(--color-bg); box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .45);
+    font-size: .88rem; line-height: 1.4;
+}
+.tt-tip[hidden] { display: none; }
+.tt-tip strong { display: block; margin-bottom: 8px; font: 700 1.1rem/1.15 var(--font-display); }
+.tt-tip dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+.tt-tip dt { opacity: .7; }
+.tt-tip dd { margin: 0; font-weight: 600; }
+.tt-tip::after {
+    content: ""; position: absolute; left: var(--arrow-x, 50%); width: 12px; height: 12px; background: inherit;
+    transform: translateX(-50%) rotate(45deg);
+}
+.tt-tip.is-above::after { bottom: -6px; }
+.tt-tip.is-below::after { top: -6px; }
+
+/* Vue liste */
+.tt-list { display: none; margin: 0; padding: 0; list-style: none; border: var(--border-width) solid var(--color-line); border-radius: var(--radius); background: var(--color-surface); }
+.tt-list li { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 2px 14px; padding: 12px 16px; border-top: var(--border-width) solid var(--color-line); }
+.tt-list li:first-child { border-top: 0; }
+.tt-list time { grid-row: span 2; font-weight: 700; color: var(--color-primary); font-variant-numeric: tabular-nums; }
+.tt-list-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .84rem; color: var(--color-muted); }
+.tt-list-meta span { display: inline-flex; align-items: center; gap: 5px; }
+.timetable.is-list .tt-scroll { display: none; }
+.timetable.is-list .tt-list { display: block; }
+@media (max-width: 520px) {
+    .tt-list li { grid-template-columns: 1fr; }
+    .tt-list time { grid-row: auto; }
+}
+
+/* 6. Affiche -------------------------------------------------------------- */
+.festival-poster {
+    display: grid; gap: 14px; align-items: center; margin: 24px 0 0; padding: 16px;
+    border-radius: var(--radius); background: var(--color-surface); border: var(--border-width) solid var(--color-line);
+}
+.festival-poster img { width: 100%; max-height: 640px; object-fit: contain; border-radius: var(--radius-sm); }
+.festival-poster figcaption { display: grid; gap: 4px; }
+@media (min-width: 760px) {
+    .festival-poster { grid-template-columns: minmax(0, 300px) 1fr; }
+}

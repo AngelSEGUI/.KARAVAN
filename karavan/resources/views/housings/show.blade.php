@@ -7,6 +7,8 @@
     $canManage = $user?->can('update', $housing);
     $nights = $housing->defaultNights();
     $maxNights = config('karavan.max_nights');
+    $myBooking = $user ? $housing->bookings->firstWhere('user_id', $user->id) : null;
+    $pending = $housing->bookings->filter->isPending()->count();
 @endphp
 <x-layouts.app :title="$housing->title">
     <div class="container">
@@ -53,18 +55,13 @@
                 </section>
 
                 @if ($canManage && $housing->bookings->isNotEmpty())
-                    <section class="card">
+                    <section class="card" id="demandes">
                         <h2 class="h4">Demandes reçues ({{ $housing->bookings->count() }})</h2>
-                        <ul class="people-list">
-                            @foreach ($housing->bookings as $booking)
-                                <li>
-                                    <x-avatar :user="$booking->guest" size="sm" />
-                                    {{ $booking->guest->name }}
-                                    <span class="muted">· {{ $booking->guests }} pers., {{ plural($booking->nights, 'nuit') }}</span>
-                                    @if ($booking->message)<small class="muted">« {{ $booking->message }} »</small>@endif
-                                </li>
+                        <div class="stack">
+                            @foreach ($housing->bookings->sortBy(fn ($b) => [$b->isPending() ? 0 : 1, $b->created_at]) as $booking)
+                                <x-booking-request :booking="$booking" />
                             @endforeach
-                        </ul>
+                        </div>
                     </section>
                 @endif
             </div>
@@ -74,17 +71,36 @@
 
                 @if ($canManage)
                     @if ($housing->isHostedBy($user))
-                        <p class="notice">C'est votre logement. {{ $housing->bookings->isEmpty() ? "Aucune demande pour l'instant." : plural($housing->bookings->count(), 'demande reçue', 'demandes reçues') . '.' }}</p>
+                        <p @class(['notice', 'notice-warning' => $pending])>
+                            C'est votre logement.
+                            {{ $pending ? plural($pending, 'demande attend', 'demandes attendent') . ' votre réponse.' : 'Aucune demande en attente.' }}
+                            @if ($pending)<a href="#demandes">Répondre</a>@endif
+                        </p>
                     @endif
                     <div class="owner-box">
                         <a href="{{ route('housings.edit', $housing) }}" class="btn btn-ghost btn-block"><x-icon name="edit" />Modifier le logement</a>
                         <x-delete-form :action="route('housings.destroy', $housing)" label="Supprimer le logement" class="btn btn-danger btn-block"
-                            :confirm="'Supprimer ce logement ?' . ($housing->bookings->isNotEmpty() ? ' Les ' . $housing->bookings->count() . ' demande(s) reçue(s) seront annulées.' : '')" />
+                            :confirm="'Supprimer ce logement ?' . ($housing->activeBookings()->exists() ? ' Les demandes en cours seront annulées et les voyageurs prévenus par email.' : '')" />
                     </div>
                 @elseif ($canBook === null)
                     <a href="{{ route('login') }}" class="btn btn-primary btn-block">Se connecter pour réserver</a>
+                @elseif ($myBooking?->isActive() || $myBooking?->status === \App\Enums\BookingStatus::Declined)
+                    <div class="my-booking">
+                        <div class="my-booking-head">Votre demande <x-booking-status :booking="$myBooking" /></div>
+                        <p class="muted small">{{ $myBooking->summary() }} · {{ euros($myBooking->total()) }}</p>
+                        <p class="small">
+                            @if ($myBooking->isPending())
+                                {{ $housing->host->first_name }} va accepter ou refuser votre demande : vous recevrez un email.
+                            @elseif ($myBooking->isAccepted())
+                                <x-icon name="check" class="icon-sm" />Séjour confirmé, à bientôt !
+                            @else
+                                {{ $canBook->message() }} <a href="{{ route('housings.index', ['festival' => $housing->festival_id]) }}">Voir d'autres logements</a>
+                            @endif
+                        </p>
+                        <x-booking-actions :booking="$myBooking" block />
+                    </div>
                 @elseif ($canBook->denied())
-                    <p class="notice notice-success"><x-icon name="check" class="icon-sm" />{{ $canBook->message() }}</p>
+                    <p class="notice">{{ $canBook->message() }}</p>
                 @else
                     <form method="POST" action="{{ route('housings.book', $housing) }}" class="form" data-price="{{ $housing->price_per_night }}">
                         @csrf
@@ -97,7 +113,8 @@
                         <x-field name="message" label="Message à l'hôte" type="textarea" rows="3" maxlength="500" optional
                                  placeholder="Présentez-vous, heure d'arrivée…" />
                         <div class="total">Total <strong data-total>{{ euros($housing->price_per_night * $nights) }}</strong></div>
-                        <button type="submit" class="btn btn-primary btn-block">Envoyer la demande</button>
+                        <button type="submit" class="btn btn-primary btn-block">Envoyer ma demande</button>
+                        <p class="muted small center" style="margin: 0">{{ $housing->host->first_name }} acceptera ou refusera votre demande. Vous serez prévenu par email.</p>
                     </form>
                 @endif
             </aside>

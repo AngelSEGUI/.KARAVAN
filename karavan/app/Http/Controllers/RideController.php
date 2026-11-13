@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\RideRequest;
 use App\Models\Festival;
 use App\Models\Ride;
+use App\Notifications\BookingRequested;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -28,7 +29,7 @@ class RideController extends Controller
 
     public function show(Request $request, Ride $ride): View
     {
-        $ride->load(['driver', 'festival', 'bookings.passenger'])->loadSum('bookings as booked_seats', 'seats');
+        $ride->load(['driver', 'festival', 'bookings.passenger'])->loadSum('activeBookings as booked_seats', 'seats');
 
         return view('rides.show', [
             'ride' => $ride,
@@ -55,7 +56,7 @@ class RideController extends Controller
     public function edit(Ride $ride): View
     {
         $this->authorize('update', $ride);
-        $ride->loadSum('bookings as booked_seats', 'seats');
+        $ride->loadSum('activeBookings as booked_seats', 'seats');
 
         return view('rides.form', [
             'ride' => $ride,
@@ -82,7 +83,7 @@ class RideController extends Controller
 
     public function book(Request $request, Ride $ride): RedirectResponse
     {
-        $ride->loadSum('bookings as booked_seats', 'seats');
+        $ride->loadSum('activeBookings as booked_seats', 'seats');
         $decision = Gate::inspect('book', $ride);
 
         if ($decision->denied()) {
@@ -96,9 +97,13 @@ class RideController extends Controller
             'seats.max' => 'Il ne reste que :max place(s) sur ce trajet.',
         ]);
 
-        $ride->bookings()->create($data + ['user_id' => $request->user()->id]);
+        // Après une annulation, la même ligne est réutilisée (une seule demande par membre et par trajet)
+        $booking = $ride->bookingOf($request->user());
+        $booking ? $booking->reopen($data) : $booking = $ride->bookings()->create($data + ['user_id' => $request->user()->id]);
+
+        $ride->driver->notify(new BookingRequested($booking->load(['ride.festival', 'passenger'])));
 
         return redirect()->route('rides.show', $ride)
-            ->with('success', "C'est réservé ! {$ride->driver->first_name} a reçu votre demande.");
+            ->with('success', "Demande envoyée à {$ride->driver->first_name} ! Vous recevrez un email dès qu'il ou elle aura répondu.");
     }
 }

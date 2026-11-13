@@ -16,6 +16,7 @@
     12. Onglets            .tabs
     13. Pagination         .pagination
     14. Divers             .card, .card-link, .rail, .link-arrow, .switch, .danger-zone
+    15. Réservations       .request, .booking-actions, .my-booking, .avatar-notify   <x-booking-request>
    ========================================================================== */
 
 /* 1. Boutons ---------------------------------------------------------------- */
@@ -111,6 +112,7 @@ summary.avatar { cursor: pointer; }
         hsl(calc(var(--h) - 30) calc(var(--cover-saturation) - 15%) calc(var(--cover-lightness) - 24%)) 100%);
 }
 .cover-card { aspect-ratio: 16 / 10; }
+.cover-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cover-hero { position: absolute; inset: 0; }
 .cover-sun {
     display: var(--cover-sun);
@@ -343,6 +345,8 @@ input[type="checkbox"], input[type="radio"] { width: auto; min-height: 0; }
 .notice { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--color-bg-alt); }
 .notice-success { display: flex; align-items: center; gap: 4px; background: var(--color-success-bg); color: var(--color-success); }
 .notice-warning { background: var(--color-warning-bg); color: var(--color-warning); }
+.notice-error { background: var(--color-danger-bg); color: var(--color-danger); }
+.notice ul { margin: 6px 0 0; padding-left: 20px; }
 
 /* 11. États vides ------------------------------------------------------------- */
 .empty { padding: 48px 16px; text-align: center; color: var(--color-text-soft); }
@@ -411,6 +415,39 @@ blockquote {
 .people-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 .people-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .people-list small { width: 100%; padding-left: 36px; }
+
+/* 15. Réservations ---------------------------------------------------------- */
+/* Demande reçue (Mon espace, fiche trajet/logement) */
+.request {
+    display: grid; gap: 10px; padding: 14px 16px;
+    background: var(--color-surface); border: var(--border-width) solid var(--color-line); border-radius: 14px;
+}
+.request.is-closed { opacity: 0.6; }
+.request-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.request > * { min-width: 0; }
+.request-who { flex: 1; min-width: 0; }
+.request-who strong { display: block; }
+.request-who small { display: block; }
+.request-who a { font-weight: 600; text-decoration: none; color: var(--color-text); }
+.request-message { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--color-bg-alt); font-style: italic; }
+.request-bio { margin: 0; }
+.booking-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.booking-actions-block { display: grid; }
+
+/* Ma demande, dans l'encadré de réservation */
+.my-booking { display: grid; gap: 4px; margin-top: 8px; padding-top: 12px; border-top: var(--border-width) solid var(--color-line); }
+.my-booking-head { display: flex; align-items: center; justify-content: space-between; font-weight: 700; }
+.my-booking p { margin: 0 0 6px; }
+
+/* Pastille rouge du nombre de demandes à traiter, sur l'avatar de l'en-tête */
+.avatar-notify { position: relative; }
+.avatar-notify[data-count]::after {
+    content: attr(data-count);
+    position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px;
+    border: 2px solid var(--color-bg); border-radius: 999px;
+    background: var(--color-danger); color: #fff;
+    font: 700 0.65rem/14px var(--font-body); text-align: center;
+}
 
 /* ---------- Responsive ---------- */
 @media (min-width: 640px) {

@@ -27,9 +27,19 @@ class UserFactory extends Factory
         ];
     }
 
+    public function unverified(): static
+    {
+        return $this->state(fn () => ['email_verified_at' => null]);
+    }
+
     public function admin(): static
     {
         return $this->state(fn () => ['role' => UserRole::Admin]);
+    }
+
+    public function pro(): static
+    {
+        return $this->state(fn () => ['role' => UserRole::Pro, 'organization' => 'Asso ' . fake()->lastName()]);
     }
 
     public function suspended(): static

@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\ProRequestApproved;
+use App\Notifications\ProRequestDeclined;
+use Illuminate\Validation\Rule;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,31 +27,58 @@ class UserController extends Controller
                 ->where('name', 'like', "%{$q}%")
                 ->orWhere('email', 'like', "%{$q}%")
                 ->orWhere('city', 'like', "%{$q}%")))
+            ->withCount('festivals')
             ->when($filter === 'admin', fn (Builder $b) => $b->where('role', UserRole::Admin))
+            ->when($filter === 'organisateurs', fn (Builder $b) => $b->where('role', UserRole::Pro))
+            ->when($filter === 'demandes-pro', fn (Builder $b) => $b->whereNotNull('pro_requested_at')->where('role', UserRole::Member))
             ->when($filter === 'suspendus', fn (Builder $b) => $b->whereNotNull('suspended_at'))
             ->latest()->orderByDesc('id')
             ->paginate(25)->withQueryString();
 
-        return view('admin.users.index', compact('users', 'q', 'filter'));
+        $proRequests = User::whereNotNull('pro_requested_at')->where('role', UserRole::Member)->count();
+
+        return view('admin.users.index', compact('users', 'q', 'filter', 'proRequests'));
     }
 
-    public function toggleRole(Request $request, User $user): RedirectResponse
+    /** Changer le rôle : membre, organisateur ou admin. */
+    public function updateRole(Request $request, User $user): RedirectResponse
     {
         if ($response = $this->preventSelfAction($request, $user)) {
             return $response;
         }
 
-        if ($user->isAdmin()) {
-            $user->role = UserRole::Member;
-            $message = "{$user->name} n'est plus administrateur.";
-        } else {
-            $user->role = UserRole::Admin;
+        $role = UserRole::from($request->validate(['role' => ['required', Rule::enum(UserRole::class)]])['role']);
+
+        $user->role = $role;
+        if ($role !== UserRole::Member) {
             $user->suspended_at = null;
-            $message = "{$user->name} est maintenant administrateur.";
+            $user->pro_requested_at = null;
         }
         $user->save();
 
-        return back()->with('success', $message);
+        return back()->with('success', "{$user->name} est maintenant : " . mb_strtolower($role->label()) . '.');
+    }
+
+    /** Valider ou refuser une demande de profil organisateur (email envoyé au demandeur). */
+    public function answerProRequest(Request $request, User $user, string $decision): RedirectResponse
+    {
+        if (! $user->hasPendingProRequest()) {
+            return back()->with('error', "{$user->name} n'a pas de demande en attente.");
+        }
+
+        $user->pro_requested_at = null;
+        if ($decision === 'valider') {
+            $user->role = UserRole::Pro;
+            $user->save();
+            $user->notify(new ProRequestApproved($user));
+
+            return back()->with('success', "{$user->name} est maintenant organisateur. Un email l'en a informé(e).");
+        }
+
+        $user->save();
+        $user->notify(new ProRequestDeclined($user));
+
+        return back()->with('info', "Demande de {$user->name} refusée. Un email l'en a informé(e).");
     }
 
     public function toggleSuspension(Request $request, User $user): RedirectResponse

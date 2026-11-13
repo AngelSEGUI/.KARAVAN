@@ -19,7 +19,22 @@ class ProfileController extends Controller
 
     public function update(ProfileRequest $request): RedirectResponse
     {
-        $request->user()->update($request->validated());
+        $user = $request->user();
+        $user->fill($request->validated());
+
+        // Nouvelle adresse : elle doit être confirmée à son tour
+        $emailChanged = $user->isDirty('email');
+        if ($emailChanged) {
+            $user->email_verified_at = null;
+        }
+        $user->save();
+
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
+
+            return redirect()->route('verification.notice')
+                ->with('info', "Profil mis à jour. Confirmez votre nouvelle adresse grâce à l'email que nous venons d'envoyer.");
+        }
 
         return redirect()->route('profile.edit')->with('success', 'Profil mis à jour.');
     }

@@ -6,6 +6,7 @@ use App\Enums\HousingType;
 use App\Http\Requests\HousingRequest;
 use App\Models\Festival;
 use App\Models\Housing;
+use App\Notifications\BookingRequested;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -102,9 +103,13 @@ class HousingController extends Controller
             'guests.max' => 'Ce logement accueille au maximum :max personne(s).',
         ]);
 
-        $housing->bookings()->create($data + ['user_id' => $request->user()->id]);
+        // Après une annulation, la même ligne est réutilisée (une seule demande par membre et par logement)
+        $booking = $housing->bookingOf($request->user());
+        $booking ? $booking->reopen($data) : $booking = $housing->bookings()->create($data + ['user_id' => $request->user()->id]);
+
+        $housing->host->notify(new BookingRequested($booking->load(['housing.festival', 'guest'])));
 
         return redirect()->route('housings.show', $housing)
-            ->with('success', "Demande envoyée à {$housing->host->first_name} !");
+            ->with('success', "Demande envoyée à {$housing->host->first_name} ! Vous recevrez un email dès qu'il ou elle aura répondu.");
     }
 }
